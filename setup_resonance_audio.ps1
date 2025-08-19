@@ -151,6 +151,13 @@ try {
     }
     Set-Location $resonanceAudioDir
 
+    # --- Clean previous build directory to ensure a fresh build ---
+    $buildDir = Join-Path $resonanceAudioDir "build"
+    if (Test-Path $buildDir) {
+        Write-Host "Removing existing build directory: $buildDir"
+        Remove-Item -LiteralPath $buildDir -Recurse -Force
+    }
+
     # --- Patch CMakeLists.txt for FFI_SOURCES if needed ---
     $cmakeFile = Join-Path $resonanceAudioDir "resonance_audio\CMakeLists.txt"
     $patchText = @'
