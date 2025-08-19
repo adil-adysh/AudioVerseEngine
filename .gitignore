@@ -1,0 +1,29 @@
+
+# Rust build artifacts
+target/
+**/target/
+
+# Cargo / Rust metadata
+Cargo.lock
+
+# Visual Studio / Windows build artifacts
+*.pdb
+*.exe
+*.dll
+*.lib
+*.obj
+*.ilk
+
+# CMake / build directories
+build/
+cmake-build-debug/
+
+# Common editor/OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Third-party and generated
+third_party/
+

@@ -1,0 +1,11 @@
+
+[workspace]
+members = [
+	"audio-backend",
+	"resonance-ffi",
+	"resonance",
+	"engine-core",
+	"content-pipeline",
+	"app-android",
+	"app-windows"
+]
