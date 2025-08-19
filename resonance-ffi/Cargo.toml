@@ -7,3 +7,4 @@ edition = "2024"
 
 [build-dependencies]
 bindgen = "0.69"
+sha2 = "0.10"

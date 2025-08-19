@@ -1,4 +1,5 @@
 #include "resonance_c_api.h"
+#include <stdio.h>
 #include "../resonance-audio/resonance_audio/api/resonance_audio_api.h"
 
 // Avoid pulling vraudio symbols into the global namespace to prevent name
@@ -10,11 +11,19 @@ extern "C" {
 ResonanceAudioApiHandle resonance_create_api(size_t num_channels, size_t frames_per_buffer, int sample_rate_hz) {
     // Call the fully-qualified factory function from the vraudio namespace.
     vraudio::ResonanceAudioApi* api = vraudio::CreateResonanceAudioApi(num_channels, frames_per_buffer, sample_rate_hz);
+    // Lightweight tracing to stderr to help diagnose lifetime issues from tests.
+    if (api) {
+        fprintf(stderr, "[rcapi] resonance_create_api -> %p (channels=%zu, frames=%zu, rate=%d)\n", api, num_channels, frames_per_buffer, sample_rate_hz);
+    } else {
+        fprintf(stderr, "[rcapi] resonance_create_api -> NULL\n");
+    }
     return static_cast<ResonanceAudioApiHandle>(api);
 }
 
 void resonance_destroy_api(ResonanceAudioApiHandle handle) {
+    fprintf(stderr, "[rcapi] resonance_destroy_api called on %p\n", handle);
     delete static_cast<vraudio::ResonanceAudioApi*>(handle);
+    fprintf(stderr, "[rcapi] resonance_destroy_api returned for %p\n", handle);
 }
 
 bool resonance_fill_interleaved_output_buffer_f32(ResonanceAudioApiHandle handle, size_t num_channels, size_t num_frames, float* buffer_ptr) {
@@ -122,13 +131,17 @@ void resonance_set_reflection_properties(ResonanceAudioApiHandle handle, const R
     rp.cutoff_frequency = reflection_properties->cutoff_frequency;
     for (int i = 0; i < 6; ++i) rp.coefficients[i] = reflection_properties->coefficients[i];
     rp.gain = reflection_properties->gain;
+    fprintf(stderr, "[rcapi] resonance_set_reflection_properties called on %p\n", handle);
     static_cast<vraudio::ResonanceAudioApi*>(handle)->SetReflectionProperties(rp);
+    fprintf(stderr, "[rcapi] resonance_set_reflection_properties returned on %p\n", handle);
 }
 void resonance_set_reverb_properties(ResonanceAudioApiHandle handle, const ReverbProperties* reverb_properties) {
     vraudio::ReverbProperties rp;
     for (int i = 0; i < 9; ++i) rp.rt60_values[i] = reverb_properties->rt60_values[i];
     rp.gain = reverb_properties->gain;
+    fprintf(stderr, "[rcapi] resonance_set_reverb_properties called on %p\n", handle);
     static_cast<vraudio::ResonanceAudioApi*>(handle)->SetReverbProperties(rp);
+    fprintf(stderr, "[rcapi] resonance_set_reverb_properties returned on %p\n", handle);
 }
 
 } // extern "C"

@@ -11,10 +11,42 @@ fn main() {
     let resonance_audio_dir = workspace_root.join("resonance-audio");
     let build_dir = resonance_audio_dir.join("build");
 
-    // Remove previous build to force a fresh CMake configure/build.
+    // Remove previous build only if FFI sources changed. Compute checksum of
+    // the two FFI files and compare to a stored checksum in the native build
+    // directory to avoid expensive rebuilds when FFI didn't change.
+    let ffi_cc = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("resonance_c_api.cc");
+    let ffi_h = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("resonance_c_api.h");
+    let checksum_file = build_dir.join(".ffi_checksum");
+
+    // Helper: compute a simple sha256 of concatenated files (if present)
+    fn compute_checksum(p1: &PathBuf, p2: &PathBuf) -> Option<String> {
+        use std::io::Read;
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        for p in [p1, p2] {
+            if !p.exists() { return None; }
+            let mut f = std::fs::File::open(p).ok()?;
+            let mut buf = Vec::new();
+            f.read_to_end(&mut buf).ok()?;
+            hasher.update(&buf);
+        }
+        Some(format!("{:x}", hasher.finalize()))
+    }
+
+    let current_checksum = compute_checksum(&ffi_cc, &ffi_h);
+    let mut need_rebuild = true;
     if build_dir.exists() {
-        println!("Removing existing native build directory: {}", build_dir.display());
-        let _ = fs::remove_dir_all(&build_dir);
+        if let (Some(cur), Ok(prev)) = (current_checksum.as_ref(), std::fs::read_to_string(&checksum_file)) {
+            if prev.trim() == cur.trim() {
+                // No changes to FFI sources -> skip removing build dir
+                need_rebuild = false;
+                println!("FFI sources unchanged; skipping native build directory removal");
+            }
+        }
+        if need_rebuild {
+            println!("Removing existing native build directory: {}", build_dir.display());
+            let _ = fs::remove_dir_all(&build_dir);
+        }
     }
 
     // Configure with CMake from the resonance-audio directory.
@@ -44,6 +76,12 @@ fn main() {
         .expect("Failed to spawn cmake for build");
     if !status.success() {
         panic!("CMake build failed");
+    }
+
+    // If we computed a checksum and build succeeded, persist it so future
+    // invocations can skip rebuild when FFI didn't change.
+    if let (Some(cur), Ok(_)) = (current_checksum.as_ref(), std::fs::create_dir_all(&build_dir)) {
+        let _ = std::fs::write(&checksum_file, cur.as_bytes());
     }
 
     // Emit link search and link lib so rustc can link the produced native library.
