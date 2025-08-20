@@ -53,7 +53,7 @@ pub struct DeviceInfo {
 /// The core trait defining the audio backend's contract.
 /// 
 /// All backend implementations must adhere to this interface.
-pub trait AudioBackend {
+pub trait AudioBackend: std::any::Any {
     fn start(&mut self, render: RenderFn) -> Result<(), BackendError>;
     fn stop(&mut self) -> Result<(), BackendError>;
     fn sample_rate(&self) -> u32;

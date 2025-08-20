@@ -1,10 +1,10 @@
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}, Mutex};
+use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use std::thread;
-use std::time::Duration;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, StreamConfig, SampleFormat};
 use crossbeam_channel::{unbounded, Sender, Receiver};
+use arc_swap::ArcSwapOption;
 
 use crate::{BackendError, RenderFn, DeviceInfo, AudioBackend, DiagnosticEvent, DiagnosticsCb};
 
@@ -20,13 +20,13 @@ pub struct CpalAudioBackend {
 struct CpalBackendInner {
     // Read-only device info.
     info: DeviceInfo,
-    // Render function stored behind a Mutex for now (simpler semantics).
-    // TODO: replace with ArcSwapOption for RT lock-free access.
-    render: Arc<Mutex<Option<crate::RenderFn>>>,
+    // Render function stored behind a lock-free ArcSwapOption for real-time access.
+    // The type is now explicitly wrapped in an Arc to satisfy ArcSwapOption's requirements.
+    render: Arc<ArcSwapOption<RenderFn>>,
     // Atomic frame counter updated by worker.
     frames: AtomicU64,
     // Diagnostics callback (worker uses this via a clone of the Arc)
-    diagnostics: Option<DiagnosticsCb>,
+    diagnostics: Arc<ArcSwapOption<DiagnosticsCb>>,
     // Control channel sender to worker.
     ctrl_tx: Sender<CtrlMsg>,
 }
@@ -77,9 +77,9 @@ impl CpalAudioBackend {
 
         let inner = Arc::new(CpalBackendInner {
             info,
-            render: Arc::new(Mutex::new(None)),
+            render: Arc::new(ArcSwapOption::from(None)),
             frames: AtomicU64::new(0),
-            diagnostics: None,
+            diagnostics: Arc::new(ArcSwapOption::from(None)),
             ctrl_tx: tx.clone(),
         });
 
@@ -94,108 +94,91 @@ impl CpalAudioBackend {
 }
 
 fn worker_loop(device: Device, config: StreamConfig, rx: Receiver<CtrlMsg>, inner: Arc<CpalBackendInner>) {
-    // Preallocated conversion buffer (per-callback); grow on demand.
     let mut _conv_buf: Vec<f32> = Vec::new();
     let channels = config.channels as usize;
-
-    // Worker local diagnostics clone for non-RT callbacks.
-    let mut diagnostics = inner.diagnostics.clone();
 
     let mut stream_opt: Option<cpal::Stream> = None;
 
     loop {
-        // Non-blocking handle of control messages so the worker can manage stream lifecycle.
-        while let Ok(msg) = rx.try_recv() {
-            match msg {
-                CtrlMsg::SetRender(opt) => {
-                    // opt is Option<RenderFn> where RenderFn == Arc<dyn Fn...>
-                    let mut g = inner.render.lock().unwrap();
-                    *g = opt;
-                }
-                CtrlMsg::Start => {
-                    if stream_opt.is_none() {
-                        // Build stream with RT-safe callback.
-                        // Clone `inner` specifically for the closure to prevent the move error.
-                        let inner_for_cb = inner.clone();
-                        let channels_local = channels;
-                        let sample_rate = config.sample_rate.0;
-
-                        // Clone the diagnostics callback for this stream's error callback
-                        let diagnostics_for_err_cb = diagnostics.clone();
-                        let err_cb = move |err| {
-                            // Non-RT: report XRUN via diagnostics callback if set.
-                            eprintln!("CPAL stream error: {}", err);
-                            if let Some(cb) = &diagnostics_for_err_cb {
-                                let cb_clone = cb.clone();
-                                std::thread::spawn(move || cb_clone(DiagnosticEvent::XRun { count: 1 }));
-                            }
-                        };
-
-                        // The data callback uses the cloned `inner_for_cb`.
-                        let data_cb = move |data: &mut [f32], _info: &cpal::OutputCallbackInfo| {
-                            let opt_render = {
-                                // Use the cloned `inner_for_cb` to get a guard on the render function.
-                                let guard = inner_for_cb.render.lock().unwrap();
-                                guard.clone()
+        match rx.recv() {
+            Ok(msg) => {
+                match msg {
+                    CtrlMsg::SetRender(opt) => {
+                        inner.render.store(opt.map(Arc::new));
+                    }
+                    CtrlMsg::Start => {
+                        if stream_opt.is_none() {
+                            // Clone `inner` for the error callback.
+                            let inner_for_err_cb = inner.clone();
+                            let err_cb = move |err| {
+                                eprintln!("CPAL stream error: {}", err);
+                                if let Some(cb) = &*inner_for_err_cb.diagnostics.load() {
+                                    let cb_clone = cb.clone();
+                                    std::thread::spawn(move || cb_clone(DiagnosticEvent::XRun { count: 1 }));
+                                }
                             };
-                            if let Some(render) = opt_render.as_ref() {
-                                let frames = data.len() / channels_local;
-                                // Call user render; protect from panic.
-                                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                    (render)(data, sample_rate, frames);
-                                }));
-                                if res.is_err() {
+
+                            // Clone `inner` again for the data callback.
+                            let inner_for_data_cb = inner.clone();
+                            let channels_local = channels;
+                            let sample_rate = config.sample_rate.0;
+
+                            let data_cb = move |data: &mut [f32], _info: &cpal::OutputCallbackInfo| {
+                                let opt_render = inner_for_data_cb.render.load();
+                                if let Some(render) = opt_render.as_ref() {
+                                    let frames = data.len() / channels_local;
+                                    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                        (**render)(data, sample_rate, frames);
+                                    }));
+                                    if res.is_err() {
+                                        data.iter_mut().for_each(|s| *s = 0.0);
+                                    }
+                                } else {
                                     data.iter_mut().for_each(|s| *s = 0.0);
                                 }
-                            } else {
-                                data.iter_mut().for_each(|s| *s = 0.0);
-                            }
 
-                            // Update frames counter (relaxed)
-                            let frames_written = (data.len() / channels_local) as u64;
-                            inner_for_cb.frames.fetch_add(frames_written, Ordering::Relaxed);
-                        };
+                                let frames_written = (data.len() / channels_local) as u64;
+                                inner_for_data_cb.frames.fetch_add(frames_written, Ordering::Relaxed);
+                            };
 
-                        match device.build_output_stream(&config, data_cb, err_cb, None) {
-                            Ok(s) => {
-                                if let Err(e) = s.play() {
-                                    eprintln!("Failed to play stream: {}", e);
-                                } else {
-                                    stream_opt = Some(s);
+                            match device.build_output_stream(&config, data_cb, err_cb, None) {
+                                Ok(s) => {
+                                    if let Err(e) = s.play() {
+                                        eprintln!("Failed to play stream: {}", e);
+                                    } else {
+                                        stream_opt = Some(s);
+                                    }
                                 }
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to build stream: {}", e);
-                                if let Some(cb) = &diagnostics {
-                                    let cb_clone = cb.clone();
-                                    std::thread::spawn(move || cb_clone(DiagnosticEvent::Other(format!("stream build failed: {}", e))));
+                                Err(e) => {
+                                    eprintln!("Failed to build stream: {}", e);
+                                    if let Some(cb) = &*inner.diagnostics.load() {
+                                        let cb_clone = cb.clone();
+                                        std::thread::spawn(move || cb_clone(DiagnosticEvent::Other(format!("stream build failed: {}", e))));
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                CtrlMsg::Stop => {
-                    stream_opt = None; // drop stream to stop
-                }
-                CtrlMsg::SetDiagnostics(cb) => {
-                    diagnostics = cb;
-                }
-                CtrlMsg::Shutdown => {
-                    // The stream will be dropped automatically when the function returns and stream_opt
-                    // goes out of scope.
-                    return;
+                    CtrlMsg::Stop => {
+                        stream_opt = None;
+                    }
+                    CtrlMsg::SetDiagnostics(cb) => {
+                        inner.diagnostics.store(cb.map(Arc::new));
+                    }
+                    CtrlMsg::Shutdown => {
+                        return;
+                    }
                 }
             }
+            Err(_) => {
+                return;
+            }
         }
-
-        // Sleep briefly to yield; worker is event-driven via channels.
-        thread::sleep(Duration::from_millis(2));
     }
 }
 
 impl AudioBackend for CpalAudioBackend {
     fn start(&mut self, render: RenderFn) -> Result<(), BackendError> {
-        // Set the render function and send Start.
         self.inner.ctrl_tx.send(CtrlMsg::SetRender(Some(render))).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
         self.inner.ctrl_tx.send(CtrlMsg::Start).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
         Ok(())

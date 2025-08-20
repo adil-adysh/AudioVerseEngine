@@ -1,0 +1,31 @@
+warning: virtual workspace defaulting to `resolver = "1"` despite one or more workspace members being on edition 2024 which implies `resolver = "3"`
+note: to keep the current resolver, specify `workspace.resolver = "1"` in the workspace root's manifest
+note: to use the edition 2024 resolver, specify `workspace.resolver = "3"` in the workspace root's manifest
+note: for more details see https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions
+warning: variant `Shutdown` is never constructed
+  --> audio-backend\src\cpal_backend.rs:39:5
+   |
+34 | enum CtrlMsg {
+   |      ------- variant in this enum
+...
+39 |     Shutdown,
+   |     ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `audio-backend` (lib) generated 1 warning
+warning: `audio-backend` (lib test) generated 1 warning (1 duplicate)
+   Compiling audio-backend v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\audio-backend)
+error[E0308]: mismatched types
+   --> audio-backend\tests\test-mock-audiobackend.rs:211:39
+    |
+211 |     let mock_ref: &MockAudioBackend = &backend;
+    |                   -----------------   ^^^^^^^^ expected `&MockAudioBackend`, found `&Box<dyn AudioBackend>`
+    |                   |
+    |                   expected due to this
+    |
+    = note: expected reference `&MockAudioBackend`
+               found reference `&Box<dyn audio_backend::AudioBackend>`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `audio-backend` (test "test-mock-audiobackend") due to 1 previous error
