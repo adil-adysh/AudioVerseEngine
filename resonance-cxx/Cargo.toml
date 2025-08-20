@@ -1,0 +1,16 @@
+[package]
+name = "resonance-cxx"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Safe Rust bindings to vraudio::ResonanceAudioApi using cxx"
+
+[dependencies]
+cxx = "1.0.168"
+
+[build-dependencies]
+cxx-build = "1.0.168"
+
+[features]
+# Default: only interleaved buffer APIs. Planar buffers can be added later.
+default = []

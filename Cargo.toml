@@ -3,6 +3,7 @@
 members = [
 	"audio-backend",
 	"resonance-ffi",
+	"resonance-cxx",
 	"resonance",
 	"engine-core",
 	"content-pipeline",
