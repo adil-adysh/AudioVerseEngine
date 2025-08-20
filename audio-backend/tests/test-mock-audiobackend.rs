@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use crossbeam_channel::{unbounded, Sender};
-use audio_backend::{AudioBackend, DiagnosticEvent, RenderFn, DiagnosticsCb, BackendError};
+use audio_backend::{AudioBackend, DiagnosticEvent, RenderFn, DiagnosticsCb, BackendError, DeviceInfoProvider};
 
 // Mock implementation of the AudioBackend.
 // It holds a shared state that is accessible from both the test thread and the mock worker thread.
@@ -127,7 +127,20 @@ impl AudioBackend for MockAudioBackend {
     fn set_diagnostics_callback(&mut self, cb: Option<crate::DiagnosticsCb>) {
         self.ctrl_tx.send(MockCtrlMsg::SetDiagnostics(cb)).unwrap();
     }
+    
+    // This is the new method that was missing.
+    fn as_device_info_provider(&self) -> Option<&dyn DeviceInfoProvider> {
+        Some(self)
+    }
 }
+
+// We also need to implement the DeviceInfoProvider trait for our mock backend.
+impl DeviceInfoProvider for MockAudioBackend {
+    fn get_device_name(&self) -> Option<&str> {
+        Some("Mock Audio Device")
+    }
+}
+
 
 // A simple render function for testing
 fn test_render_fn(data: &mut [f32], _sample_rate: u32, _frames: usize) {
@@ -170,6 +183,10 @@ mod tests {
         assert_eq!(backend.frames_since_start(), 0);
         assert!(backend.sample_rate() > 0);
         assert!(backend.channels() > 0);
+        
+        // Test the new method
+        let provider = backend.as_device_info_provider().unwrap();
+        assert_eq!(provider.get_device_name(), Some("Mock Audio Device"));
     }
 
     #[test]
@@ -265,4 +282,3 @@ mod tests {
         assert!(frames_2 > frames_1);
     }
 }
-
