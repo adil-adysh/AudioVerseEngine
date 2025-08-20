@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+cpal = "0.15"
+arc-swap = "1.6"
+crossbeam-channel = "0.5"
+
+[features]
+# The mock-audio feature enables the mock backend for tests and specific builds.
+mock-audio = []
