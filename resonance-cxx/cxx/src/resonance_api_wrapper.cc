@@ -9,19 +9,21 @@ namespace ra {
 ResonanceAudioApi::ResonanceAudioApi(std::unique_ptr<::vraudio::ResonanceAudioApi> impl) : impl_(std::move(impl)) {}
 ResonanceAudioApi::~ResonanceAudioApi() = default;
 
-bool ResonanceAudioApi::FillInterleavedOutputBuffer(size_t num_channels, size_t num_frames, float* buffer_ptr) {
-  return impl_->FillInterleavedOutputBuffer(num_channels, num_frames, buffer_ptr);
+bool ResonanceAudioApi::FillInterleavedOutputBufferF32(size_t num_channels, size_t num_frames, ::rust::Slice<float> buffer) {
+  // Forward the rust::Slice to the underlying impl as a raw pointer. The
+  // bridge ensures slice.data() is non-null when size>0.
+  return impl_->FillInterleavedOutputBuffer(num_channels, num_frames, buffer.data());
 }
 
-bool ResonanceAudioApi::FillInterleavedOutputBuffer(size_t num_channels, size_t num_frames, int16_t* buffer_ptr) {
-  return impl_->FillInterleavedOutputBuffer(num_channels, num_frames, buffer_ptr);
+bool ResonanceAudioApi::FillInterleavedOutputBufferI16(size_t num_channels, size_t num_frames, ::rust::Slice<int16_t> buffer) {
+  return impl_->FillInterleavedOutputBuffer(num_channels, num_frames, buffer.data());
 }
 
-bool ResonanceAudioApi::FillPlanarOutputBuffer(size_t num_channels, size_t num_frames, float* const* buffer_ptr) {
+bool ResonanceAudioApi::FillPlanarOutputBufferF32(size_t num_channels, size_t num_frames, float* const* buffer_ptr) {
   return impl_->FillPlanarOutputBuffer(num_channels, num_frames, buffer_ptr);
 }
 
-bool ResonanceAudioApi::FillPlanarOutputBuffer(size_t num_channels, size_t num_frames, int16_t* const* buffer_ptr) {
+bool ResonanceAudioApi::FillPlanarOutputBufferI16(size_t num_channels, size_t num_frames, int16_t* const* buffer_ptr) {
   return impl_->FillPlanarOutputBuffer(num_channels, num_frames, buffer_ptr);
 }
 
@@ -32,19 +34,33 @@ void ResonanceAudioApi::SetStereoSpeakerMode(bool enabled) { impl_->SetStereoSpe
 
 SourceId ResonanceAudioApi::CreateAmbisonicSource(size_t num_channels) { return impl_->CreateAmbisonicSource(num_channels); }
 SourceId ResonanceAudioApi::CreateStereoSource(size_t num_channels) { return impl_->CreateStereoSource(num_channels); }
-SourceId ResonanceAudioApi::CreateSoundObjectSource(::vraudio::RenderingMode mode) { return impl_->CreateSoundObjectSource(mode); }
+SourceId ResonanceAudioApi::CreateSoundObjectSource(ra::RenderingMode mode) {
+  // ra::RenderingMode and ::vraudio::RenderingMode have the same underlying
+  // integer representation; static_cast converts the value.
+  return impl_->CreateSoundObjectSource(static_cast<::vraudio::RenderingMode>(mode));
+}
 void ResonanceAudioApi::DestroySource(SourceId id) { impl_->DestroySource(id); }
 
-void ResonanceAudioApi::SetInterleavedBuffer(SourceId source_id, const float* audio_buffer_ptr, size_t num_channels, size_t num_frames) {
-  impl_->SetInterleavedBuffer(source_id, audio_buffer_ptr, num_channels, num_frames);
+void ResonanceAudioApi::SetInterleavedBufferF32(SourceId source_id, ::rust::Slice<const float> audio, size_t num_channels, size_t num_frames) {
+  impl_->SetInterleavedBuffer(source_id, audio.data(), num_channels, num_frames);
 }
 
-void ResonanceAudioApi::SetInterleavedBuffer(SourceId source_id, const int16_t* audio_buffer_ptr, size_t num_channels, size_t num_frames) {
-  impl_->SetInterleavedBuffer(source_id, audio_buffer_ptr, num_channels, num_frames);
+void ResonanceAudioApi::SetInterleavedBufferI16(SourceId source_id, ::rust::Slice<const int16_t> audio, size_t num_channels, size_t num_frames) {
+  impl_->SetInterleavedBuffer(source_id, audio.data(), num_channels, num_frames);
+}
+
+void ResonanceAudioApi::SetPlanarBufferF32(SourceId source_id, const float* const* audio_buffer_ptr, size_t num_channels, size_t num_frames) {
+  impl_->SetPlanarBuffer(source_id, audio_buffer_ptr, num_channels, num_frames);
+}
+
+void ResonanceAudioApi::SetPlanarBufferI16(SourceId source_id, const int16_t* const* audio_buffer_ptr, size_t num_channels, size_t num_frames) {
+  impl_->SetPlanarBuffer(source_id, audio_buffer_ptr, num_channels, num_frames);
 }
 
 void ResonanceAudioApi::SetSourceDistanceAttenuation(SourceId source_id, float distance_attenuation) { impl_->SetSourceDistanceAttenuation(source_id, distance_attenuation); }
-void ResonanceAudioApi::SetSourceDistanceModel(SourceId source_id, ::vraudio::DistanceRolloffModel rolloff, float min_distance, float max_distance) { impl_->SetSourceDistanceModel(source_id, rolloff, min_distance, max_distance); }
+void ResonanceAudioApi::SetSourceDistanceModel(SourceId source_id, ra::DistanceRolloffModel rolloff, float min_distance, float max_distance) {
+  impl_->SetSourceDistanceModel(source_id, static_cast<::vraudio::DistanceRolloffModel>(rolloff), min_distance, max_distance);
+}
 void ResonanceAudioApi::SetSourcePosition(SourceId source_id, float x, float y, float z) { impl_->SetSourcePosition(source_id, x, y, z); }
 void ResonanceAudioApi::SetSourceRoomEffectsGain(SourceId source_id, float room_effects_gain) { impl_->SetSourceRoomEffectsGain(source_id, room_effects_gain); }
 void ResonanceAudioApi::SetSourceRotation(SourceId source_id, float x, float y, float z, float w) { impl_->SetSourceRotation(source_id, x, y, z, w); }

@@ -4,6 +4,7 @@
 // Include the authoritative header from the resonance-audio project that
 // declares vraudio::ResonanceAudioApi and related types.
 #include <resonance_audio_api.h>
+#include "rust/cxx.h"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -13,12 +14,14 @@
 // cxx-generated headers can refer to `ra::ResonanceAudioApi` and
 // `ra::SourceId`.
 namespace ra {
-	// Forward declarations for PODs the cxx bridge will define in the
-	// generated header. We only declare them here so method signatures can
-	// refer to them; their full definitions are provided by cxx in
-	// `bridge.rs.h` which includes this file.
+	// Forward declarations for PODs and enums that the cxx bridge will
+	// define in the generated header. We declare them here so method
+	// signatures can refer to them; their full definitions are provided by
+	// cxx in `bridge.rs.h` which includes this file.
 	struct ReflectionProperties;
 	struct ReverbProperties;
+	enum class RenderingMode : ::std::int32_t;
+	enum class DistanceRolloffModel : ::std::int32_t;
 
 		using SourceId = std::int32_t;
 
@@ -32,11 +35,13 @@ namespace ra {
 		explicit ResonanceAudioApi(std::unique_ptr<::vraudio::ResonanceAudioApi> impl);
 		~ResonanceAudioApi();
 
-		// Output filling
-		bool FillInterleavedOutputBuffer(size_t num_channels, size_t num_frames, float* buffer_ptr);
-		bool FillInterleavedOutputBuffer(size_t num_channels, size_t num_frames, int16_t* buffer_ptr);
-		bool FillPlanarOutputBuffer(size_t num_channels, size_t num_frames, float* const* buffer_ptr);
-		bool FillPlanarOutputBuffer(size_t num_channels, size_t num_frames, int16_t* const* buffer_ptr);
+	// Output filling - use uniquely named methods to avoid C++ overload
+	// Use rust::Slice<> for interleaved buffers so the cxx bridge generates
+	// the expected rust::Slice parameter types in the generated C++.
+	bool FillInterleavedOutputBufferF32(size_t num_channels, size_t num_frames, ::rust::Slice<float> buffer);
+	bool FillInterleavedOutputBufferI16(size_t num_channels, size_t num_frames, ::rust::Slice<int16_t> buffer);
+	bool FillPlanarOutputBufferF32(size_t num_channels, size_t num_frames, float* const* buffer_ptr);
+	bool FillPlanarOutputBufferI16(size_t num_channels, size_t num_frames, int16_t* const* buffer_ptr);
 
 		// Head / global
 		void SetHeadPosition(float x, float y, float z);
@@ -47,14 +52,20 @@ namespace ra {
 		// Sources
 		SourceId CreateAmbisonicSource(size_t num_channels);
 		SourceId CreateStereoSource(size_t num_channels);
-		SourceId CreateSoundObjectSource(::vraudio::RenderingMode mode);
+		// Use the ra::RenderingMode type (the cxx-generated enum) so member function
+		// pointer types match exactly what the bridge expects.
+		SourceId CreateSoundObjectSource(ra::RenderingMode mode);
 		void DestroySource(SourceId id);
 
-		void SetInterleavedBuffer(SourceId source_id, const float* audio_buffer_ptr, size_t num_channels, size_t num_frames);
-		void SetInterleavedBuffer(SourceId source_id, const int16_t* audio_buffer_ptr, size_t num_channels, size_t num_frames);
+	// Accept rust::Slice<const T> for immutable audio buffers coming from Rust.
+	void SetInterleavedBufferF32(SourceId source_id, ::rust::Slice<const float> audio, size_t num_channels, size_t num_frames);
+	void SetInterleavedBufferI16(SourceId source_id, ::rust::Slice<const int16_t> audio, size_t num_channels, size_t num_frames);
+
+	void SetPlanarBufferF32(SourceId source_id, const float* const* audio_buffer_ptr, size_t num_channels, size_t num_frames);
+	void SetPlanarBufferI16(SourceId source_id, const int16_t* const* audio_buffer_ptr, size_t num_channels, size_t num_frames);
 
 		void SetSourceDistanceAttenuation(SourceId source_id, float distance_attenuation);
-		void SetSourceDistanceModel(SourceId source_id, ::vraudio::DistanceRolloffModel rolloff, float min_distance, float max_distance);
+		void SetSourceDistanceModel(SourceId source_id, ra::DistanceRolloffModel rolloff, float min_distance, float max_distance);
 		void SetSourcePosition(SourceId source_id, float x, float y, float z);
 		void SetSourceRoomEffectsGain(SourceId source_id, float room_effects_gain);
 		void SetSourceRotation(SourceId source_id, float x, float y, float z, float w);
