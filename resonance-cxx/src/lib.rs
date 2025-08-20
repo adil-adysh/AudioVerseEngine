@@ -30,6 +30,54 @@ impl Api {
 	self.as_pin_mut().fill_interleaved_output_buffer_i16(num_channels, num_frames, buffer)
 	}
 
+	/// Fill a planar buffer (channels separated) by converting to an
+	/// interleaved temporary and calling the interleaved fill implementation.
+	///
+	/// Accepts `channels` as a slice of mutable slices, one per channel,
+	/// each of length `num_frames`. Returns false if lengths mismatch.
+	pub fn fill_planar_f32(&mut self, channels: &mut [&mut [f32]]) -> bool {
+		if channels.is_empty() {
+			return true; // nothing to do
+		}
+		let num_channels = channels.len();
+		let num_frames = channels[0].len();
+		for ch in channels.iter() {
+			if ch.len() != num_frames { return false; }
+		}
+
+		// Create an interleaved temporary buffer
+		let mut interleaved = vec![0f32; num_channels * num_frames];
+		// Call the interleaved fill which writes into the buffer
+		let ok = self.as_pin_mut().fill_interleaved_output_buffer_f32(num_channels, num_frames, &mut interleaved);
+		if !ok { return false; }
+
+		// Deinterleave into planar slices
+		for frame in 0..num_frames {
+			for ch in 0..num_channels {
+				channels[ch][frame] = interleaved[frame * num_channels + ch];
+			}
+		}
+		true
+	}
+
+	/// Set a planar source buffer (immutable) by interleaving into a temporary
+	/// and calling the interleaved setter. This avoids exposing raw pointers
+	/// across the FFI and keeps the public surface safe.
+	pub fn set_planar_buffer_f32(&mut self, source_id: i32, channels: &[&[f32]], num_frames: usize) -> bool {
+		if channels.is_empty() { return true; }
+		let num_channels = channels.len();
+		for ch in channels.iter() { if ch.len() != num_frames { return false; } }
+
+		let mut interleaved = vec![0f32; num_channels * num_frames];
+		for frame in 0..num_frames {
+			for ch in 0..num_channels {
+				interleaved[frame * num_channels + ch] = channels[ch][frame];
+			}
+		}
+		self.as_pin_mut().set_interleaved_buffer_f32(source_id, &interleaved, num_channels, num_frames);
+		true
+	}
+
 	pub fn set_head_position(&mut self, x: f32, y: f32, z: f32) { self.as_pin_mut().set_head_position(x, y, z); }
 	pub fn set_head_rotation(&mut self, x: f32, y: f32, z: f32, w: f32) { self.as_pin_mut().set_head_rotation(x, y, z, w); }
 	pub fn set_master_volume(&mut self, volume: f32) { self.as_pin_mut().set_master_volume(volume); }
