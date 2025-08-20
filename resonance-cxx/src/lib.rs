@@ -78,6 +78,71 @@ impl Api {
 		true
 	}
 
+	/// Planar helpers for i16 audio.
+	pub fn fill_planar_i16(&mut self, channels: &mut [&mut [i16]]) -> bool {
+		if channels.is_empty() { return true; }
+		let num_channels = channels.len();
+		let num_frames = channels[0].len();
+		for ch in channels.iter() { if ch.len() != num_frames { return false; } }
+
+		let mut interleaved = vec![0i16; num_channels * num_frames];
+		let ok = self.as_pin_mut().fill_interleaved_output_buffer_i16(num_channels, num_frames, &mut interleaved);
+		if !ok { return false; }
+		for frame in 0..num_frames {
+			for ch in 0..num_channels {
+				channels[ch][frame] = interleaved[frame * num_channels + ch];
+			}
+		}
+		true
+	}
+
+	pub fn set_planar_buffer_i16(&mut self, source_id: i32, channels: &[&[i16]], num_frames: usize) -> bool {
+		if channels.is_empty() { return true; }
+		let num_channels = channels.len();
+		for ch in channels.iter() { if ch.len() != num_frames { return false; } }
+		let mut interleaved = vec![0i16; num_channels * num_frames];
+		for frame in 0..num_frames {
+			for ch in 0..num_channels {
+				interleaved[frame * num_channels + ch] = channels[ch][frame];
+			}
+		}
+		self.as_pin_mut().set_interleaved_buffer_i16(source_id, &interleaved, num_channels, num_frames);
+		true
+	}
+
+	/// Variant that accepts a caller-provided interleaved scratch buffer for f32.
+	/// The scratch buffer will be resized as needed. Using this avoids the
+	/// allocation per-call in high-frequency paths.
+	pub fn set_planar_buffer_f32_with_scratch(&mut self, source_id: i32, channels: &[&[f32]], num_frames: usize, scratch: &mut Vec<f32>) -> bool {
+		if channels.is_empty() { return true; }
+		let num_channels = channels.len();
+		for ch in channels.iter() { if ch.len() != num_frames { return false; } }
+		let needed = num_channels * num_frames;
+		if scratch.len() < needed { scratch.resize(needed, 0.0); }
+		for frame in 0..num_frames {
+			for ch in 0..num_channels {
+				scratch[frame * num_channels + ch] = channels[ch][frame];
+			}
+		}
+		self.as_pin_mut().set_interleaved_buffer_f32(source_id, &scratch, num_channels, num_frames);
+		true
+	}
+
+	pub fn set_planar_buffer_i16_with_scratch(&mut self, source_id: i32, channels: &[&[i16]], num_frames: usize, scratch: &mut Vec<i16>) -> bool {
+		if channels.is_empty() { return true; }
+		let num_channels = channels.len();
+		for ch in channels.iter() { if ch.len() != num_frames { return false; } }
+		let needed = num_channels * num_frames;
+		if scratch.len() < needed { scratch.resize(needed, 0); }
+		for frame in 0..num_frames {
+			for ch in 0..num_channels {
+				scratch[frame * num_channels + ch] = channels[ch][frame];
+			}
+		}
+		self.as_pin_mut().set_interleaved_buffer_i16(source_id, &scratch, num_channels, num_frames);
+		true
+	}
+
 	pub fn set_head_position(&mut self, x: f32, y: f32, z: f32) { self.as_pin_mut().set_head_position(x, y, z); }
 	pub fn set_head_rotation(&mut self, x: f32, y: f32, z: f32, w: f32) { self.as_pin_mut().set_head_rotation(x, y, z, w); }
 	pub fn set_master_volume(&mut self, volume: f32) { self.as_pin_mut().set_master_volume(volume); }
@@ -101,6 +166,22 @@ impl Api {
 	pub fn set_source_distance_model(&mut self, source_id: i32, rolloff: DistanceRolloffModel, min_distance: f32, max_distance: f32) { self.as_pin_mut().set_source_distance_model(source_id, rolloff, min_distance, max_distance); }
 
 	pub fn set_source_position(&mut self, source_id: i32, x: f32, y: f32, z: f32) { self.as_pin_mut().set_source_position(source_id, x, y, z); }
+
+	pub fn set_source_room_effects_gain(&mut self, source_id: i32, room_effects_gain: f32) { self.as_pin_mut().set_source_room_effects_gain(source_id, room_effects_gain); }
+
+	pub fn set_source_rotation(&mut self, source_id: i32, x: f32, y: f32, z: f32, w: f32) { self.as_pin_mut().set_source_rotation(source_id, x, y, z, w); }
+
+	pub fn set_source_volume(&mut self, source_id: i32, volume: f32) { self.as_pin_mut().set_source_volume(source_id, volume); }
+
+	pub fn set_sound_object_directivity(&mut self, source_id: i32, alpha: f32, order: f32) { self.as_pin_mut().set_sound_object_directivity(source_id, alpha, order); }
+
+	pub fn set_sound_object_listener_directivity(&mut self, source_id: i32, alpha: f32, order: f32) { self.as_pin_mut().set_sound_object_listener_directivity(source_id, alpha, order); }
+
+	pub fn set_sound_object_near_field_effect_gain(&mut self, source_id: i32, gain: f32) { self.as_pin_mut().set_sound_object_near_field_effect_gain(source_id, gain); }
+
+	pub fn set_sound_object_occlusion_intensity(&mut self, source_id: i32, intensity: f32) { self.as_pin_mut().set_sound_object_occlusion_intensity(source_id, intensity); }
+
+	pub fn set_sound_object_spread(&mut self, source_id: i32, spread_deg: f32) { self.as_pin_mut().set_sound_object_spread(source_id, spread_deg); }
 
 	pub fn enable_room_effects(&mut self, enable: bool) { self.as_pin_mut().enable_room_effects(enable); }
 
