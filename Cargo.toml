@@ -7,4 +7,6 @@ members = [
 	"content-pipeline",
 	"app-android",
 	"app-windows"
+	,
+	"integration-tests"
 ]

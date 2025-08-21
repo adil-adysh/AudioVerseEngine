@@ -1,0 +1,11 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+audio-backend = { path = "../audio-backend", features = ["mock-audio"] }
+resonance-cxx = { path = "../resonance-cxx" }
+
+[dev-dependencies]
+# Use the test harness built into Rust; no extra crates needed.
