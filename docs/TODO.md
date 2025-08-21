@@ -6,6 +6,7 @@
 3. Create safe wrapper `ResonanceCtx` for FFI in Rust.
 4. Implement `audio-backend` trait and basic CPAL (Windows) backend.
 5. Implement lock-free command queue and frame scheduler (single-producer, single-consumer).
+
 6. Implement basic source registry and ring buffer logic.
 7. Implement minimal Engine API: init, shutdown, create/destroy source, play clip, set listener pose.
 8. Implement simple ECS setup with `hecs` (entities, components for audio sources/listener).
