@@ -8,3 +8,7 @@ audio-backend = { path = "../audio-backend" }
 resonance-cxx = { path = "../resonance-cxx" }
 cxx = "1.0.168"
 cpal = "0.15"
+serial_test = "2.0"
+
+[features]
+real-audio-tests = []

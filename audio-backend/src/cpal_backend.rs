@@ -6,7 +6,7 @@ use cpal::{Device, StreamConfig, SampleFormat};
 use crossbeam_channel::{unbounded, Sender, Receiver};
 use arc_swap::ArcSwapOption;
 
-use crate::{BackendError, RenderFn, DeviceInfo, AudioBackend, DiagnosticEvent, DiagnosticsCb};
+use crate::{BackendError, RenderFn, DeviceInfo, AudioBackend, DiagnosticEvent, DiagnosticsCb, DeviceInfoProvider};
 
 /// Worker-thread-backed CPAL backend.
 /// Public `CpalAudioBackend` is a Send-safe handle that communicates with the
@@ -47,23 +47,35 @@ impl CpalAudioBackend {
         let host = cpal::default_host();
         let device = host.default_output_device().ok_or(BackendError::DeviceNotFound)?;
 
-        let mut supported_configs = device.supported_output_configs()
-            .map_err(|e| BackendError::Other(e.to_string()))?
-            .collect::<Vec<_>>();
+            // Prefer the device's default output config when available. This matches
+            // how simple examples (like `play_tone`) pick the OS-configured default
+            // and avoids surprising sample-rate differences.
+            let config = match device.default_output_config() {
+                Ok(default_cfg) => {
+                    eprintln!("Using device.default_output_config(): {:?}", default_cfg);
+                    default_cfg.config()
+                }
+                Err(_) => {
+                    // Fallback: enumerate supported configs and pick an f32 stereo one.
+                    let mut supported_configs = device.supported_output_configs()
+                        .map_err(|e| BackendError::Other(e.to_string()))?
+                        .collect::<Vec<_>>();
 
-        if supported_configs.is_empty() {
-            return Err(BackendError::UnsupportedFormat("no supported configs".into()));
-        }
+                    if supported_configs.is_empty() {
+                        return Err(BackendError::UnsupportedFormat("no supported configs".into()));
+                    }
 
-        // Prefer f32 interleaved, stereo, maximum sample rate.
-        let chosen = supported_configs.iter()
-            .rev()
-            .find(|c| c.sample_format() == SampleFormat::F32 && c.channels() >= 2)
-            .cloned()
-            .or_else(|| supported_configs.pop())
-            .unwrap();
+                    // Prefer f32 interleaved, stereo, maximum sample rate.
+                    let chosen = supported_configs.iter()
+                        .rev()
+                        .find(|c| c.sample_format() == SampleFormat::F32 && c.channels() >= 2)
+                        .cloned()
+                        .or_else(|| supported_configs.pop())
+                        .unwrap();
 
-        let config = chosen.with_max_sample_rate().config();
+                    chosen.with_max_sample_rate().config()
+                }
+            };
 
         let buffer_frames = match config.buffer_size {
             cpal::BufferSize::Fixed(n) => n as usize,
@@ -74,6 +86,7 @@ impl CpalAudioBackend {
             sample_rate: config.sample_rate.0,
             buffer_size: buffer_frames,
             channels: config.channels as u16,
+            device_name: device.name().ok(),
         };
 
         let (tx, rx) = unbounded::<CtrlMsg>();
@@ -230,5 +243,14 @@ impl AudioBackend for CpalAudioBackend {
     fn frames_since_start(&self) -> u64 { self.inner.frames.load(Ordering::Relaxed) }
     fn set_diagnostics_callback(&mut self, cb: Option<DiagnosticsCb>) {
         self.inner.ctrl_tx.send(CtrlMsg::SetDiagnostics(cb)).ok();
+    }
+    fn as_device_info_provider(&self) -> Option<&dyn DeviceInfoProvider> {
+        Some(self)
+    }
+}
+
+impl DeviceInfoProvider for CpalAudioBackend {
+    fn get_device_name(&self) -> Option<&str> {
+        self.inner.info.device_name.as_deref()
     }
 }

@@ -5,16 +5,22 @@
 Set-Location -Path (Split-Path -Parent $MyInvocation.MyCommand.Path) | Out-Null
 Set-Location -Path ".." | Out-Null
 
-# Set environment variable to enable the tests
-$env:RUN_REAL_AUDIO = '1'
+param(
+	[switch]$UseIgnored
+)
 
 # Optionally enable backtrace for debugging
 if (-not $env:RUST_BACKTRACE) { $env:RUST_BACKTRACE = '1' }
 
-Write-Host "Running real-audio integration tests (RUN_REAL_AUDIO=1) ..."
-
-# Run only the integration-tests package and include ignored tests
-cargo test -p integration-tests -- --ignored --nocapture
-
-# Exit with the cargo command's exit code
-exit $LASTEXITCODE
+if ($UseIgnored) {
+	Write-Host "Running real-audio integration tests by executing ignored tests in 'integration-tests'..."
+	cargo test -p integration-tests -- --ignored --nocapture
+	exit $LASTEXITCODE
+} else {
+	Write-Host "Running real-audio integration tests using cargo feature 'real-audio-tests' (will run ignored tests)..."
+	# Run tests with the feature enabled. The real-device tests are gated by
+	# the `real-audio-tests` feature and annotated `#[ignore]` so we pass
+	# `--ignored` to execute them explicitly.
+	cargo test -p integration-tests --features real-audio-tests -- --ignored --nocapture
+	exit $LASTEXITCODE
+}
