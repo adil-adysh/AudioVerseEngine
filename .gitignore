@@ -21,7 +21,6 @@ cmake-build-debug/
 # Common editor/OS files
 .DS_Store
 .idea/
-.vscode/
 *.swp
 
 # Third-party and generated
