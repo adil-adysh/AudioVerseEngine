@@ -8,7 +8,7 @@ pub struct SfxMetadata {
     pub loop_points: Option<(u64, u64)>,
 }
 
-const TARGET_SAMPLE_RATE: u32 = 48000;
+pub(crate) const TARGET_SAMPLE_RATE: u32 = 48000;
 
 /// Load an SFX/PCM file from disk and return interleaved f32 samples plus metadata.
 pub fn load_sfx_path(path: &std::path::Path) -> Result<(Vec<f32>, SfxMetadata), Error> {
@@ -81,7 +81,7 @@ pub fn parse_pcm_sfx_data(data: &[u8]) -> Result<(Vec<f32>, SfxMetadata), Error>
 }
 
 /// Simple linear resampler for interleaved samples. Conservative, single-threaded.
-fn resample_interleaved(samples: &[f32], from_rate: u32, to_rate: u32, channels: usize) -> Vec<f32> {
+pub(crate) fn resample_interleaved(samples: &[f32], from_rate: u32, to_rate: u32, channels: usize) -> Vec<f32> {
     if from_rate == to_rate || samples.is_empty() {
         return samples.to_vec();
     }

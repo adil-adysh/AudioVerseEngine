@@ -6,7 +6,7 @@ members = [
 	"audio-backend",
 	"resonance-cxx",
 	"engine-core",
-	"content-pipeline",
+	"asset-manager",
 	"app-android",
 	"app-windows"
 	,

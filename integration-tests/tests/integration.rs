@@ -24,7 +24,9 @@ fn smoke_integration_audio_with_resonance() {
 
     // Start backend with a trivial render function that writes zeros.
     let render = std::sync::Arc::new(|buf: &mut [f32], _sr: u32, _frames: usize| {
-        for b in buf.iter_mut() { *b = 0.0; }
+        for b in buf.iter_mut() {
+            *b = 0.0;
+        }
     });
     backend.start(render).expect("start backend");
     backend.stop().expect("stop backend");
