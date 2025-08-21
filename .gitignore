@@ -26,3 +26,7 @@ cmake-build-debug/
 # Third-party and generated
 third_party/
 
+# If `resonance-audio` is used as a git submodule or external copy, ignore its working tree here.
+# If you want to track submodule changes, prefer `git submodule` commands or configure submodule.ignore.
+resonance-audio/
+
