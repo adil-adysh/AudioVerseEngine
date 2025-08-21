@@ -3,7 +3,7 @@
 // normal CI.
 #[cfg(feature = "real-audio-tests")]
 mod real_audio_tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Mutex, atomic::{AtomicUsize, Ordering}};
     use std::thread::sleep;
     use std::time::Duration;
     use serial_test::serial;
@@ -33,20 +33,21 @@ mod real_audio_tests {
             api_guard.create_stereo_source(2)
         };
 
-        // Generate some simple audio data (a 440 Hz sine wave) using detected backend sample rate.
+        // We'll generate blocks repeatedly while preserving phase between
+        // blocks to avoid discontinuities (clicks) at block boundaries.
         let frames = (backend_sr as usize) / 4;
         let freq = 440.0f32;
-        let mut interleaved = vec![0f32; frames * 2];
-        for i in 0..frames {
-            let t = i as f32 / backend_sr as f32;
-            let s = (2.0 * std::f32::consts::PI * freq * t).sin() * 0.5;
-            interleaved[i*2] = s;
-            interleaved[i*2 + 1] = s;
-        }
+        // playback amplitude lowered to avoid clipping and harshness
+        let amplitude = 0.2f32;
+        // short fade (ms) at block edges to further reduce boundary artifacts
+        let fade_ms = 5.0f32;
+        let fade_samples = ((backend_sr as f32) * (fade_ms / 1000.0)).max(1.0) as usize;
 
+        // Pre-set the Api buffer with silence-sized buffer so API internal state is valid.
         {
             let mut api_guard = api.lock().unwrap();
-            api_guard.set_interleaved_buffer_f32(src, &interleaved, 2, frames);
+            let silent = vec![0f32; frames * 2];
+            api_guard.set_interleaved_buffer_f32(src, &silent, 2, frames);
         }
 
         // Set up some reverb properties.
@@ -61,33 +62,73 @@ mod real_audio_tests {
         let shared_buf = Arc::new(Mutex::new(vec![0f32; shared_len]));
         let shared_clone = shared_buf.clone();
         let api_clone = Arc::clone(&api);
+        let shared_pos = Arc::new(AtomicUsize::new(0));
+        let shared_pos_cloned = shared_pos.clone();
         let render = std::sync::Arc::new(move |buf: &mut [f32], _sr: u32, frames: usize| {
-            // First try to copy from shared buffer for low-latency playback.
-            if let Ok(shared) = shared_clone.lock() {
-                let to_copy = usize::min(buf.len(), shared.len());
-                buf[..to_copy].copy_from_slice(&shared[..to_copy]);
-                if to_copy < buf.len() { buf[to_copy..].iter_mut().for_each(|s| *s = 0.0); }
-                return;
+            // Circular read with atomic position to preserve phase across blocks
+            let shared = shared_clone.lock().unwrap();
+            let buf_len = shared.len();
+            let mut pos = shared_pos_cloned.load(Ordering::Relaxed);
+            for frame in buf.chunks_mut(2) {
+                if buf_len == 0 {
+                    for sample in frame.iter_mut() { *sample = 0.0; }
+                    continue;
+                }
+                let base = pos % buf_len;
+                for ch in 0..frame.len() {
+                    frame[ch] = shared[(base + ch) % buf_len];
+                }
+                pos = (base + frame.len()) % buf_len;
             }
-            // Fallback: call into Api if lock failed.
-            if let Ok(mut api_guard) = api_clone.lock() {
-                api_guard.fill_interleaved_f32(2, frames, buf);
-            } else {
-                buf.iter_mut().for_each(|s| *s = 0.0);
-            }
+            shared_pos_cloned.store(pos, Ordering::Relaxed);
         });
 
         // Start the backend, moving the render closure into the audio thread.
         backend.start(render).expect("start");
 
-        // Fill shared buffer with the interleaved block so audio callback plays it.
-        {
-            let mut shared = shared_buf.lock().unwrap();
-            shared[..interleaved.len()].copy_from_slice(&interleaved);
-        }
+        // Continuously generate blocks, preserving phase across iterations.
+        let mut write_pos: usize = 0; // sample position used for phase continuity
+        let block_duration_ms = (frames as f32 / backend_sr as f32) * 1000.0;
+        let play_ms = 1500u64;
+        let mut elapsed = 0u64;
+        while elapsed < play_ms {
+            // generate one interleaved block starting at write_pos
+            let mut block = vec![0f32; frames * 2];
+            for i in 0..frames {
+                let t = (write_pos + i) as f32 / backend_sr as f32;
+                let mut s = (2.0 * std::f32::consts::PI * freq * t).sin() * amplitude;
+                // apply short fade-in/out within the block
+                if i < fade_samples {
+                    let f = i as f32 / fade_samples as f32;
+                    s *= f;
+                } else if i >= frames - fade_samples {
+                    let f = (frames - i) as f32 / fade_samples as f32;
+                    s *= f.max(0.0);
+                }
+                block[i*2] = s;
+                block[i*2 + 1] = s;
+            }
 
-        // Play for a few seconds.
-        sleep(Duration::from_millis(1500));
+            // set Api buffer (best-effort)
+            {
+                if let Ok(mut api_guard) = api.lock() {
+                    api_guard.set_interleaved_buffer_f32(src, &block, 2, frames);
+                }
+            }
+
+            // copy into shared buffer for playback
+            {
+                let mut shared = shared_buf.lock().unwrap();
+                let to_copy = usize::min(shared.len(), block.len());
+                shared[..to_copy].copy_from_slice(&block[..to_copy]);
+                if to_copy < shared.len() { shared[to_copy..].iter_mut().for_each(|s| *s = 0.0); }
+            }
+
+            // advance phase and wait for block duration
+            write_pos = write_pos.wrapping_add(frames);
+            sleep(Duration::from_millis(block_duration_ms as u64));
+            elapsed += block_duration_ms as u64;
+        }
 
         // Stop the backend. This signals the audio thread to shut down.
         backend.stop().expect("stop");
@@ -120,16 +161,15 @@ mod real_audio_tests {
 
         let frames = (backend_sr as usize) / 4;
         let freq = 440.0f32;
-        let mut mono_samples = vec![0f32; frames];
-        for i in 0..frames {
-            let t = i as f32 / backend_sr as f32;
-            mono_samples[i] = (2.0 * std::f32::consts::PI * freq * t).sin() * 0.5;
-        }
+        let amplitude = 0.2f32;
+        let fade_ms = 5.0f32;
+        let fade_samples = ((backend_sr as f32) * (fade_ms / 1000.0)).max(1.0) as usize;
 
+        // prefill api with silence
         {
             let mut api_guard = api.lock().unwrap();
-            // set_planar_buffer_f32 expects a slice of channel slices.
-            api_guard.set_planar_buffer_f32(src, &[&mono_samples[..]], frames);
+            let silent = vec![0f32; frames];
+            api_guard.set_planar_buffer_f32(src, &[&silent[..]], frames);
         }
 
         let shared_len = frames * 2;
@@ -137,13 +177,13 @@ mod real_audio_tests {
         let shared_clone = shared_buf.clone();
         let api_clone = Arc::clone(&api);
         let render = std::sync::Arc::new(move |buf: &mut [f32], _sr: u32, frames: usize| {
-            if let Ok(shared) = shared_clone.lock() {
+            if let Ok(shared) = shared_clone.try_lock() {
                 let to_copy = usize::min(buf.len(), shared.len());
                 buf[..to_copy].copy_from_slice(&shared[..to_copy]);
                 if to_copy < buf.len() { buf[to_copy..].iter_mut().for_each(|s| *s = 0.0); }
                 return;
             }
-            if let Ok(mut api_guard) = api_clone.lock() {
+            if let Ok(mut api_guard) = api_clone.try_lock() {
                 api_guard.fill_interleaved_f32(2, frames, buf);
             } else {
                 buf.iter_mut().for_each(|s| *s = 0.0);
@@ -152,16 +192,49 @@ mod real_audio_tests {
 
         backend.start(render).expect("start");
 
-        // fill shared mono buffer
-        {
-            let mut shared = shared_buf.lock().unwrap();
+        // Continuously generate mono blocks preserving phase and applying fades.
+        let mut write_pos: usize = 0;
+        let block_duration_ms = (frames as f32 / backend_sr as f32) * 1000.0;
+        let play_ms = 1500u64;
+        let mut elapsed = 0u64;
+        while elapsed < play_ms {
+            let mut mono_block = vec![0f32; frames];
             for i in 0..frames {
-                shared[i] = mono_samples[i];
-                shared[i + frames] = mono_samples[i];
+                let t = (write_pos + i) as f32 / backend_sr as f32;
+                let mut s = (2.0 * std::f32::consts::PI * freq * t).sin() * amplitude;
+                if i < fade_samples {
+                    let f = i as f32 / fade_samples as f32;
+                    s *= f;
+                } else if i >= frames - fade_samples {
+                    let f = (frames - i) as f32 / fade_samples as f32;
+                    s *= f.max(0.0);
+                }
+                mono_block[i] = s;
             }
-        }
 
-        sleep(Duration::from_millis(1500));
+            // set planar buffer (best-effort)
+            if let Ok(mut api_guard) = api.lock() {
+                api_guard.set_planar_buffer_f32(src, &[&mono_block[..]], frames);
+            }
+
+            // copy into shared buffer interleaved (L,R,L,R,...)
+            {
+                let mut shared = shared_buf.lock().unwrap();
+                let max_frames = usize::min(frames, mono_block.len());
+                for i in 0..max_frames {
+                    let out_i = i * 2;
+                    if out_i + 1 < shared.len() {
+                        shared[out_i] = mono_block[i];
+                        shared[out_i + 1] = mono_block[i];
+                    }
+                }
+                if max_frames * 2 < shared.len() { shared[(max_frames*2)..].iter_mut().for_each(|s| *s = 0.0); }
+            }
+
+            write_pos = write_pos.wrapping_add(frames);
+            sleep(Duration::from_millis(block_duration_ms as u64));
+            elapsed += block_duration_ms as u64;
+        }
 
         backend.stop().expect("stop");
         std::mem::drop(backend);
@@ -252,18 +325,24 @@ mod real_audio_tests {
         let shared_buf = Arc::new(Mutex::new(vec![0f32; shared_len]));
         let shared_clone = shared_buf.clone();
         let api_clone = Arc::clone(&api);
+        let shared_pos = Arc::new(AtomicUsize::new(0));
+        let shared_pos_cloned = shared_pos.clone();
         let render = std::sync::Arc::new(move |buf: &mut [f32], _sr: u32, frames: usize| {
-            if let Ok(shared) = shared_clone.lock() {
-                let to_copy = usize::min(buf.len(), shared.len());
-                buf[..to_copy].copy_from_slice(&shared[..to_copy]);
-                if to_copy < buf.len() { buf[to_copy..].iter_mut().for_each(|s| *s = 0.0); }
-                return;
+            let shared = shared_clone.lock().unwrap();
+            let buf_len = shared.len();
+            let mut pos = shared_pos_cloned.load(Ordering::Relaxed);
+            for frame in buf.chunks_mut(channels) {
+                if buf_len == 0 {
+                    for sample in frame.iter_mut() { *sample = 0.0; }
+                    continue;
+                }
+                let base = pos % buf_len;
+                for ch in 0..frame.len() {
+                    frame[ch] = shared[(base + ch) % buf_len];
+                }
+                pos = (base + frame.len()) % buf_len;
             }
-            if let Ok(mut api_guard) = api_clone.lock() {
-                api_guard.fill_interleaved_f32(2, frames, buf);
-            } else {
-                buf.iter_mut().for_each(|s| *s = 0.0);
-            }
+            shared_pos_cloned.store(pos, Ordering::Relaxed);
         });
 
         backend.start(render).expect("start");
