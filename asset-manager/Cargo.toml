@@ -1,0 +1,25 @@
+[package]
+name = "asset_manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bincode = { version = "2.0", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+# symphonia is only required for streaming decoded audio at runtime. Make it
+# optional behind the `streaming` feature so consumers that only need SFX don't
+# pull heavy decoder dependencies.
+symphonia = { version = "0.5.4", optional = true, features = ["all"] }
+# ringbuf for lock-free SPSC buffers used by streaming. Optional behind
+# `streaming` as well.
+ringbuf = { version = "0.4", optional = true }
+
+[features]
+# default provides SFX-only functionality (no runtime decoders required)
+# default feature set is empty (SFX-only)
+default = []
+# streaming enables runtime decoding and ring buffer streaming support
+streaming = ["symphonia", "ringbuf"]
+
+[dev-dependencies]
+tempfile = "3.5"
