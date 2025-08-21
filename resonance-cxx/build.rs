@@ -15,10 +15,10 @@ fn main() {
     let resonance_audio_dir = workspace_root.join("resonance-audio");
     let build_dir = resonance_audio_dir.join("build");
 
-    println!("cargo:warning=--- Starting Native C++ Build Process ---");
+    println!("--- Starting Native C++ Build Process ---");
 
     // --- Phase 1: Verify all required files and directories exist ---
-    println!("cargo:warning=1. Verifying project structure and required files...");
+    println!("1. Verifying project structure and required files...");
 
     let bridge_rs = PathBuf::from("src/bridge.rs");
     let cpp_src_file = PathBuf::from("cxx/src/resonance_bridge.cc");
@@ -33,18 +33,18 @@ fn main() {
     assert!(cpp_header_file.exists(), "Error: The C++ header file 'cxx/include/resonance_bridge.h' was not found.");
     assert!(resonance_audio_api_h.exists(), "Error: The required C++ header file 'resonance_audio_api.h' was not found at {}. This file is essential for the C++ build.", resonance_audio_api_h.display());
 
-    println!("cargo:warning=✅ All required files and directories found.");
+    println!("✅ All required files and directories found.");
 
     // --- Phase 2: Compile the native C++ library using CMake ---
     let _ = fs::create_dir_all(&build_dir);
 
-    println!("cargo:warning=2. Attempting to run CMake to configure C++ build in directory: {}", resonance_audio_dir.display());
+    println!("2. Attempting to run CMake to configure C++ build in directory: {}", resonance_audio_dir.display());
 
     // If CMake is available on PATH, run configure/build. Otherwise, skip
     // and rely on any existing build artifacts under `resonance-audio/build`.
     match Command::new("cmake").arg("--version").status() {
         Ok(_) => {
-            println!("cargo:warning=2a. CMake found; running configure...");
+            println!("2a. CMake found; running configure...");
             let status = Command::new("cmake")
                 .current_dir(&resonance_audio_dir)
                 .arg("-S").arg(".")
@@ -58,9 +58,9 @@ fn main() {
             } else {
                 panic!("Failed to run CMake configure step. Is CMake in your PATH?");
             }
-            println!("cargo:warning=✅ CMake configuration complete.");
+            println!("✅ CMake configuration complete.");
 
-            println!("cargo:warning=3. Running CMake to build C++ library...");
+            println!("3. Running CMake to build C++ library...");
             let status = Command::new("cmake")
                 .current_dir(&resonance_audio_dir)
                 .arg("--build").arg("build")
@@ -73,16 +73,16 @@ fn main() {
             } else {
                 panic!("Failed to run CMake build step. Check your C++ compiler.");
             }
-            println!("cargo:warning=✅ CMake build complete.");
+            println!("✅ CMake build complete.");
         }
         Err(_) => {
-            println!("cargo:warning=2a. CMake not found on PATH — skipping CMake configure/build.");
-            println!("cargo:warning=If you don't have prebuilt ResonanceAudio artifacts, please install CMake or set VRAUDIO_LIB_DIR to point to a built library.");
+            println!("2a. CMake not found on PATH — skipping CMake configure/build.");
+            println!("If you don't have prebuilt ResonanceAudio artifacts, please install CMake or set VRAUDIO_LIB_DIR to point to a built library.");
         }
     }
 
     // --- Phase 3: Link the C++ library and build the cxx bridge ---
-    println!("cargo:warning=4. Setting up linker and include paths for Rust build...");
+    println!("4. Setting up linker and include paths for Rust build...");
 
     // Construct the library path explicitly based on the known structure
     let lib_name = env::var("VRAUDIO_LIB_NAME").unwrap_or_else(|_| "ResonanceAudioStatic".to_string());
@@ -99,11 +99,11 @@ fn main() {
         panic!("Error: Could not find compiled C++ library at {}. Please check your CMake build output and build configuration (Debug vs Release).", lib_path.display());
     }
 
-    println!("cargo:warning=   Found C++ library at: {}", native_lib_dir.display());
+    println!("   Found C++ library at: {}", native_lib_dir.display());
     println!("cargo:rustc-link-search=native={}", native_lib_dir.display());
     println!("cargo:rustc-link-lib=static={}", lib_name);
 
-    println!("cargo:warning=5. Building Rust cxx bridge...");
+    println!("5. Building Rust cxx bridge...");
     let mut build = cxx_build::bridge(&bridge_rs);
     build.file(&cpp_src_file);
     // Also compile the small wrapper that adapts vraudio types to the cxx-generated RA types.
@@ -133,13 +133,13 @@ fn main() {
     build.include(resonance_audio_dir.join("resonance_audio"));
 
     if let Ok(env_var) = env::var("VRAUDIO_INCLUDE") {
-        println!("cargo:warning=   Using VRAUDIO_INCLUDE: {}", env_var);
+        println!("   Using VRAUDIO_INCLUDE: {}", env_var);
         build.include(&env_var);
     }
 
     build.flag_if_supported("-std=c++17");
     build.compile("resonance_cxx_bridge");
-    println!("cargo:warning=✅ Rust cxx bridge build complete.");
+    println!("✅ Rust cxx bridge build complete.");
 
-    println!("cargo:warning=--- Native C++ Build Process Finished ---");
+    println!("--- Native C++ Build Process Finished ---");
 }
