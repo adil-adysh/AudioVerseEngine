@@ -1,5 +1,5 @@
 use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, StreamConfig, SampleFormat};
@@ -15,6 +15,9 @@ use crate::{BackendError, RenderFn, DeviceInfo, AudioBackend, DiagnosticEvent, D
 /// boundaries.
 pub struct CpalAudioBackend {
     inner: Arc<CpalBackendInner>,
+    // The key addition: a handle to the worker thread.
+    // We use Option<JoinHandle> so we can take it out of the struct in the `Drop` implementation.
+    thread_handle: Option<JoinHandle<()>>,
 }
 
 struct CpalBackendInner {
@@ -85,11 +88,38 @@ impl CpalAudioBackend {
 
         // Spawn worker thread that owns the device, stream, and conversion buffers.
         let inner_worker = inner.clone();
-        thread::spawn(move || {
+        // The `thread::spawn` function returns a `JoinHandle`. We must store it.
+        let handle = thread::spawn(move || {
             worker_loop(device, config, rx, inner_worker);
         });
 
-        Ok(Self { inner })
+        Ok(Self { 
+            inner, 
+            thread_handle: Some(handle), // Store the handle
+        })
+    }
+}
+
+// Implements the Drop trait to ensure the worker thread is gracefully shut down.
+// This is crucial for preventing the race condition and the access violation.
+impl Drop for CpalAudioBackend {
+    fn drop(&mut self) {
+        // Send a shutdown message to the worker thread.
+        // We use `.ok()` to ignore the error in case the channel is already closed,
+        // which might happen if the worker thread panicked.
+        self.inner.ctrl_tx.send(CtrlMsg::Shutdown).ok();
+
+        // Take the thread handle out of the struct and join the thread.
+        // `self.thread_handle.take()` replaces the Option with None and returns the Some value,
+        // which allows us to consume the handle.
+        if let Some(handle) = self.thread_handle.take() {
+            // Wait for the thread to finish. This is a blocking call.
+            // This guarantees the worker has exited before `inner` is dropped.
+            if let Err(e) = handle.join() {
+                // Handle the case where the thread panicked.
+                eprintln!("Worker thread panicked: {:?}", e);
+            }
+        }
     }
 }
 
@@ -100,6 +130,8 @@ fn worker_loop(device: Device, config: StreamConfig, rx: Receiver<CtrlMsg>, inne
     let mut stream_opt: Option<cpal::Stream> = None;
 
     loop {
+        // We block on `rx.recv()` here, which is fine because this is a dedicated worker thread.
+        // `recv()` will return an error if the channel is disconnected (i.e., `CpalAudioBackend` is dropped and all senders are gone).
         match rx.recv() {
             Ok(msg) => {
                 match msg {
@@ -165,11 +197,13 @@ fn worker_loop(device: Device, config: StreamConfig, rx: Receiver<CtrlMsg>, inne
                     CtrlMsg::SetDiagnostics(cb) => {
                         inner.diagnostics.store(cb.map(Arc::new));
                     }
+                    // Exit the loop and the thread.
                     CtrlMsg::Shutdown => {
                         return;
                     }
                 }
             }
+            // If the channel is disconnected (all senders dropped), the worker should exit.
             Err(_) => {
                 return;
             }

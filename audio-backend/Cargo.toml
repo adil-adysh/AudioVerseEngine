@@ -8,6 +8,9 @@ cpal = "0.15"
 arc-swap = "1.6"
 crossbeam-channel = "0.5"
 
+[dev-dependencies]
+resonance-cxx = { path = "../resonance-cxx" }
+
 [features]
 # The mock-audio feature enables the mock backend for tests and specific builds.
 mock-audio = []

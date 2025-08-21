@@ -5,6 +5,16 @@ pub use bridge::{ResonanceAudioApi, DistanceRolloffModel, ReflectionProperties, 
 use std::pin::Pin;
 use cxx::UniquePtr;
 
+// Safety: The upstream C++ `vraudio::ResonanceAudioApi` is documented in
+// `resonance_audio_api.h` as thread-safe for concurrent calls from the audio
+// thread and the main/render thread. Declaring the generated opaque type as
+// `Send`/`Sync` allows the Rust side to move/share the FFI object across
+// threads. This is an unsafe assertion: callers must still ensure that no
+// thread will call into the C++ object while its destructor is running
+// (for example, join backend worker threads before dropping the Api).
+unsafe impl Send for bridge::ResonanceAudioApi {}
+unsafe impl Sync for bridge::ResonanceAudioApi {}
+
 /// Safe, ergonomic owner for the underlying C++ `ResonanceAudioApi`.
 pub struct Api {
 	inner: UniquePtr<ResonanceAudioApi>,
