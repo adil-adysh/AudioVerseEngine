@@ -10,5 +10,6 @@ members = [
 	"app-android",
 	"app-windows"
 	,
-	"integration-tests"
+	"integration-tests",
+	"tools/asset-packer"
 ]
