@@ -9,6 +9,9 @@ cxx = "1.0"
 pin-utils = "0.1"
 glam = "0.30.5"
 anyhow = "1.0.99"
+crossbeam-queue = "0.3"
+ringbuf = "0.4"
+asset_manager = { path = "../asset-manager" }
 
 [build-dependencies]
 cxx-build = "1.0"

@@ -1,4 +1,5 @@
 mod bridge;
+pub mod example;
 pub mod renderer;
 pub mod spatializer;
 pub mod types;

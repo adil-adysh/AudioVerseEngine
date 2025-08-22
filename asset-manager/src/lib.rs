@@ -10,6 +10,8 @@ pub mod util;
 
 pub use asset_manager::{AssetManager, Error};
 pub use util::AssetError;
+// Re-export SfxMetadata for convenient access from other crates
+pub use sfx_loader::SfxMetadata;
 
 #[cfg(feature = "streaming")]
 pub use streaming_loader::StreamingAsset;
