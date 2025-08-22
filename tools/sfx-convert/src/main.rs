@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
 
     // resample if needed
     let out_samples = if sample_rate != TARGET_SAMPLE_RATE {
-        resample_interleaved(&samples, sample_rate, TARGET_SAMPLE_RATE, channels as usize)
+        resample_interleaved(&samples, sample_rate, TARGET_SAMPLE_RATE, channels)
     } else {
         samples
     };

@@ -1,5 +1,4 @@
-use crate::bridge::ffi;
-use resonance_cxx::Api;
+use resonance_cxx::{Api, DistanceRolloffModel, RenderingMode};
 
 pub struct Spatializer<'a> {
     api: &'a mut Api,
@@ -8,10 +7,7 @@ pub struct Spatializer<'a> {
 
 impl<'a> Spatializer<'a> {
     /// Create a new spatializer (sound object). Borrow the Renderer Api.
-    pub fn new(
-        renderer: &'a mut crate::renderer::Renderer,
-        rendering_mode: ffi::RenderingMode,
-    ) -> Self {
+    pub fn new(renderer: &'a mut crate::renderer::Renderer, rendering_mode: RenderingMode) -> Self {
         let api = renderer.api_mut();
         let src_id = api.create_sound_object_source(rendering_mode);
         Self {
@@ -36,7 +32,7 @@ impl<'a> Spatializer<'a> {
         self.api.set_source_volume(self.source_id, gain);
     }
 
-    pub fn set_distance_rolloff(&mut self, model: ffi::DistanceRolloffModel) {
+    pub fn set_distance_rolloff(&mut self, model: DistanceRolloffModel) {
         // map to resonance-cxx distance model type
         self.api
             .set_source_distance_model(self.source_id, model, 1.0, 100.0);

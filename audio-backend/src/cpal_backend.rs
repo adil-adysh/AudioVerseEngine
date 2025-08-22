@@ -138,11 +138,10 @@ impl Drop for CpalAudioBackend {
         let _ = self.ctrl_tx.take();
 
         // Now join the worker thread to ensure it cleaned up.
-        if let Some(handle) = self.thread_handle.take() {
-            if let Err(e) = handle.join() {
+        if let Some(handle) = self.thread_handle.take()
+            && let Err(e) = handle.join() {
                 eprintln!("Worker thread panicked: {:?}", e);
             }
-        }
     }
 }
 
