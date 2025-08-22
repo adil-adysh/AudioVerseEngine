@@ -17,7 +17,6 @@ fn main() -> Result<()> {
 
 fn validate_pkg(path: &str) -> Result<()> {
     use asset_manager::pkg_format::{AssetIndexEntry, PkgHeader};
-    use bincode::Decode;
 
     // Open file
     let mut f = File::open(path).with_context(|| format!("opening {}", path))?;

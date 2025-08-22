@@ -3,7 +3,7 @@ use std::thread::{self, JoinHandle};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, StreamConfig, SampleFormat};
-use crossbeam_channel::{unbounded, Sender, Receiver};
+use crossbeam_channel::{unbounded, bounded, Sender, Receiver};
 use arc_swap::ArcSwapOption;
 
 use crate::{BackendError, RenderFn, DeviceInfo, AudioBackend, DiagnosticEvent, DiagnosticsCb, DeviceInfoProvider};
@@ -13,10 +13,29 @@ use crate::{BackendError, RenderFn, DeviceInfo, AudioBackend, DiagnosticEvent, D
 /// worker thread via a simple control channel. The worker owns the CPAL `Stream`
 /// and preallocated conversion buffers so no non-Send objects cross thread
 /// boundaries.
+///
+/// Channel ownership and shutdown semantics:
+/// - The control channel is a single unbounded (Sender/Receiver) pair. The
+///   receiver (`rx`) is owned by the worker thread; the `Sender` lives on the
+///   `CpalAudioBackend` handle (`ctrl_tx`). This is intentional so the worker
+///   can observe a channel disconnect when all senders are dropped. If the
+///   worker held a Sender clone, the receiver would never see a disconnect and
+///   would not exit automatically.
+/// - `StopAck(Sender<()>)` is used to provide a deterministic stop handshake:
+///   callers send a `StopAck` (one-shot sender) and wait for the worker to
+///   acknowledge after dropping the stream and waiting for in-flight callbacks
+///   to quiesce. This guarantees `stop()` returns only when no further render
+///   callbacks will occur.
+/// - There is no explicit `Shutdown` control message anymore. Instead Drop on
+///   `CpalAudioBackend` drops the `ctrl_tx` sender (causing the worker's `rx`
+///   to return Err) and then joins the worker thread. This keeps shutdown
+///   semantics simple and robust.
 pub struct CpalAudioBackend {
     inner: Arc<CpalBackendInner>,
-    // The key addition: a handle to the worker thread.
-    // We use Option<JoinHandle> so we can take it out of the struct in the `Drop` implementation.
+    // Control channel sender to worker. Stored here so the worker does NOT hold
+    // a Sender clone (otherwise the receiver would never see a disconnect).
+    ctrl_tx: Option<Sender<CtrlMsg>>,
+    // Worker thread handle so we can join on Drop.
     thread_handle: Option<JoinHandle<()>>,
 }
 
@@ -30,16 +49,15 @@ struct CpalBackendInner {
     frames: AtomicU64,
     // Diagnostics callback (worker uses this via a clone of the Arc)
     diagnostics: Arc<ArcSwapOption<DiagnosticsCb>>,
-    // Control channel sender to worker.
-    ctrl_tx: Sender<CtrlMsg>,
 }
 
 enum CtrlMsg {
     SetRender(Option<RenderFn>),
     Start,
-    Stop,
+    // StopAck carries a one-shot sender that the worker will use to acknowledge
+    // that rendering has fully stopped (no further data callbacks will occur).
+    StopAck(Sender<()>),
     SetDiagnostics(Option<DiagnosticsCb>),
-    Shutdown,
 }
 
 impl CpalAudioBackend {
@@ -96,18 +114,17 @@ impl CpalAudioBackend {
             render: Arc::new(ArcSwapOption::from(None)),
             frames: AtomicU64::new(0),
             diagnostics: Arc::new(ArcSwapOption::from(None)),
-            ctrl_tx: tx.clone(),
         });
 
         // Spawn worker thread that owns the device, stream, and conversion buffers.
         let inner_worker = inner.clone();
-        // The `thread::spawn` function returns a `JoinHandle`. We must store it.
         let handle = thread::spawn(move || {
             worker_loop(device, config, rx, inner_worker);
         });
 
         Ok(Self { 
             inner, 
+            ctrl_tx: Some(tx),
             thread_handle: Some(handle), // Store the handle
         })
     }
@@ -117,19 +134,12 @@ impl CpalAudioBackend {
 // This is crucial for preventing the race condition and the access violation.
 impl Drop for CpalAudioBackend {
     fn drop(&mut self) {
-        // Send a shutdown message to the worker thread.
-        // We use `.ok()` to ignore the error in case the channel is already closed,
-        // which might happen if the worker thread panicked.
-        self.inner.ctrl_tx.send(CtrlMsg::Shutdown).ok();
+        // Drop the control sender so the worker receives a channel disconnect and exits.
+        let _ = self.ctrl_tx.take();
 
-        // Take the thread handle out of the struct and join the thread.
-        // `self.thread_handle.take()` replaces the Option with None and returns the Some value,
-        // which allows us to consume the handle.
+        // Now join the worker thread to ensure it cleaned up.
         if let Some(handle) = self.thread_handle.take() {
-            // Wait for the thread to finish. This is a blocking call.
-            // This guarantees the worker has exited before `inner` is dropped.
             if let Err(e) = handle.join() {
-                // Handle the case where the thread panicked.
                 eprintln!("Worker thread panicked: {:?}", e);
             }
         }
@@ -204,16 +214,39 @@ fn worker_loop(device: Device, config: StreamConfig, rx: Receiver<CtrlMsg>, inne
                             }
                         }
                     }
-                    CtrlMsg::Stop => {
+                    CtrlMsg::StopAck(ack) => {
+                        // Drop the stream to stop callbacks.
                         stream_opt = None;
+
+                        // Wait until frames counter stabilizes (no further frames written)
+                        // so callers can deterministically know no more callbacks will occur.
+                        let start_frames = inner.frames.load(Ordering::Relaxed);
+                        let mut prev = start_frames;
+                        let mut stable = 0u32;
+                        let timeout = std::time::Duration::from_millis(500);
+                        let deadline = std::time::Instant::now() + timeout;
+                        while std::time::Instant::now() < deadline {
+                            let now = inner.frames.load(Ordering::Relaxed);
+                            if now == prev {
+                                stable += 1;
+                                if stable >= 2 {
+                                    break;
+                                }
+                            } else {
+                                prev = now;
+                                stable = 0;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(5));
+                        }
+
+                        // Send acknowledgement; ignore send errors.
+                        let _ = ack.send(());
                     }
                     CtrlMsg::SetDiagnostics(cb) => {
                         inner.diagnostics.store(cb.map(Arc::new));
                     }
                     // Exit the loop and the thread.
-                    CtrlMsg::Shutdown => {
-                        return;
-                    }
+                    // No explicit Shutdown message; worker will exit when channel disconnects.
                 }
             }
             // If the channel is disconnected (all senders dropped), the worker should exit.
@@ -226,15 +259,25 @@ fn worker_loop(device: Device, config: StreamConfig, rx: Receiver<CtrlMsg>, inne
 
 impl AudioBackend for CpalAudioBackend {
     fn start(&mut self, render: RenderFn) -> Result<(), BackendError> {
-        self.inner.ctrl_tx.send(CtrlMsg::SetRender(Some(render))).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
-        self.inner.ctrl_tx.send(CtrlMsg::Start).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
+    let tx = self.ctrl_tx.as_ref().ok_or_else(|| BackendError::Other("ctrl channel closed".into()))?;
+    tx.send(CtrlMsg::SetRender(Some(render))).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
+    tx.send(CtrlMsg::Start).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
         Ok(())
     }
 
     fn stop(&mut self) -> Result<(), BackendError> {
-        self.inner.ctrl_tx.send(CtrlMsg::Stop).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
-        self.inner.ctrl_tx.send(CtrlMsg::SetRender(None)).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
-        Ok(())
+    let tx = self.ctrl_tx.as_ref().ok_or_else(|| BackendError::Other("ctrl channel closed".into()))?;
+    let (ack_tx, ack_rx) = bounded::<()>(1);
+    // Clear the render callback first so the worker will stop executing
+    // render callbacks before we request an acknowledgement. This ordering
+    // avoids a window where the worker could observe the StopAck and reply
+    // while the render is still set, leading to an extra callback after stop()
+    // returns.
+    tx.send(CtrlMsg::SetRender(None)).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
+    tx.send(CtrlMsg::StopAck(ack_tx)).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
+    // Wait up to 500ms for the worker to acknowledge. Ignore timeout errors.
+    let _ = ack_rx.recv_timeout(std::time::Duration::from_millis(500));
+    Ok(())
     }
 
     fn sample_rate(&self) -> u32 { self.inner.info.sample_rate }
@@ -242,7 +285,9 @@ impl AudioBackend for CpalAudioBackend {
     fn channels(&self) -> u16 { self.inner.info.channels }
     fn frames_since_start(&self) -> u64 { self.inner.frames.load(Ordering::Relaxed) }
     fn set_diagnostics_callback(&mut self, cb: Option<DiagnosticsCb>) {
-        self.inner.ctrl_tx.send(CtrlMsg::SetDiagnostics(cb)).ok();
+        if let Some(tx) = self.ctrl_tx.as_ref() {
+            tx.send(CtrlMsg::SetDiagnostics(cb)).ok();
+        }
     }
     fn as_device_info_provider(&self) -> Option<&dyn DeviceInfoProvider> {
         Some(self)

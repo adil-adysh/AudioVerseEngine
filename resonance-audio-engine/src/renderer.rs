@@ -43,4 +43,22 @@ impl Renderer {
     pub(crate) fn api_mut(&mut self) -> &mut resonance_cxx::Api {
         &mut self.api
     }
+
+    /// Create a stereo (or multi-channel) source via the internal Api.
+    pub fn create_stereo_source(&mut self, num_channels: usize) -> i32 {
+        self.api.create_stereo_source(num_channels)
+    }
+
+    /// Set an interleaved f32 buffer for a source. `num_channels` and `num_frames`
+    /// must match the shape of `audio`.
+    pub fn set_interleaved_buffer_f32(
+        &mut self,
+        source_id: i32,
+        audio: &[f32],
+        num_channels: usize,
+        num_frames: usize,
+    ) {
+        self.api
+            .set_interleaved_buffer_f32(source_id, audio, num_channels, num_frames);
+    }
 }

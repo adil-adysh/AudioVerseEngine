@@ -3,7 +3,7 @@ use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, StreamConfig, SampleFormat};
-use crossbeam_channel::{unbounded, Sender, Receiver};
+use crossbeam_channel::{unbounded, bounded, Sender, Receiver};
 use arc_swap::ArcSwapOption;
 use audio_backend::DeviceInfoProvider;
 
@@ -38,9 +38,10 @@ struct CpalBackendInner {
 enum CtrlMsg {
     SetRender(Option<RenderFn>),
     Start,
-    Stop,
+    // StopAck carries a one-shot sender which the worker will use to acknowledge
+    // that rendering has fully stopped (no further data callbacks will occur).
+    StopAck(Sender<()>),
     SetDiagnostics(Option<DiagnosticsCb>),
-    Shutdown,
 }
 
 impl CpalAudioBackend {
@@ -164,15 +165,38 @@ fn worker_loop(device: Device, config: StreamConfig, rx: Receiver<CtrlMsg>, inne
                             }
                         }
                     }
-                    CtrlMsg::Stop => {
+                    CtrlMsg::StopAck(ack) => {
+                        // Drop the stream to stop callbacks.
                         stream_opt = None;
+
+                        // Wait until frames counter stabilizes (no further frames written)
+                        // so callers can deterministically know no more callbacks will occur.
+                        let start_frames = inner.frames.load(Ordering::Relaxed);
+                        let mut prev = start_frames;
+                        let mut stable = 0u32;
+                        let timeout = std::time::Duration::from_millis(500);
+                        let deadline = std::time::Instant::now() + timeout;
+                        while std::time::Instant::now() < deadline {
+                            let now = inner.frames.load(Ordering::Relaxed);
+                            if now == prev {
+                                stable += 1;
+                                if stable >= 2 {
+                                    break;
+                                }
+                            } else {
+                                prev = now;
+                                stable = 0;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(5));
+                        }
+
+                        // Send acknowledgement; ignore send errors.
+                        let _ = ack.send(());
                     }
                     CtrlMsg::SetDiagnostics(cb) => {
                         inner.diagnostics.store(cb.map(Arc::new));
                     }
-                    CtrlMsg::Shutdown => {
-                        return;
-                    }
+                    // Worker exits when the control channel is disconnected.
                 }
             }
             Err(_) => {
@@ -190,9 +214,11 @@ impl AudioBackend for CpalAudioBackend {
     }
 
     fn stop(&mut self) -> Result<(), BackendError> {
-        self.inner.ctrl_tx.send(CtrlMsg::Stop).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
-        self.inner.ctrl_tx.send(CtrlMsg::SetRender(None)).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
-        Ok(())
+    let (ack_tx, ack_rx) = bounded::<()>(1);
+    self.inner.ctrl_tx.send(CtrlMsg::StopAck(ack_tx)).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
+    self.inner.ctrl_tx.send(CtrlMsg::SetRender(None)).map_err(|_| BackendError::Other("ctrl channel closed".into()))?;
+    let _ = ack_rx.recv_timeout(std::time::Duration::from_millis(500));
+    Ok(())
     }
 
     fn sample_rate(&self) -> u32 { self.inner.info.sample_rate }
