@@ -135,6 +135,31 @@ cargo build
 cargo test
 ```
 
+## Assets & tooling
+
+- The repository includes simple asset tooling for creating game asset packages. The packer and helper tools live under `tools/`:
+
+  - `tools/asset-packer` — packs files into a binary `asset.pkg` with a 512-byte header placeholder and a `bincode`-serialized index.
+  - `tools/asset-utils` — shared utilities for converting audio files (WAV/OGG/OPUS) into the project's `.sfx` blob format.
+
+- Recommended quick workflow (PowerShell):
+
+  ```powershell
+  # from repo root
+  cargo run -p asset-packer -- --pack-assets
+  # or use wrapper if present
+  .\tools\pack-assets.ps1
+  ```
+
+- Assets layout expected by `--pack-assets` mode:
+
+  - `assets/sfx` — source audio files (.wav/.ogg/.opus) or prebuilt `.sfx` files (converted to `.sfx` by `asset-utils`).
+  - `assets/audio` — raw music/audio files packed as `Music` assets.
+  - `assets/dest` — destination for `out.pkg` created by the packer.
+
+- `.sfx` format (canonical parser: `asset-manager/src/sfx.rs`): header `"SFX1"` (4 bytes), sample format byte (0=F32), channels (u8), reserved 2 bytes, sample_rate (u32 LE), frames (u64 LE), then interleaved samples (f32 for format 0). The project expects 48 kHz interleaved f32 in memory (see `asset-manager::sfx_loader::TARGET_SAMPLE_RATE`).
+
+
 ---
 
 ## Android Notes

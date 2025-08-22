@@ -68,44 +68,101 @@ The following entries are taken from `resonance_audio_api.h` and show how each A
 - Source params
   - Methods like `SetSourcePosition`, `SetSourceVolume`, `SetSourceRotation`, `SetSoundObjectDirectivity`, etc. map to simple pass-through bridge methods taking primitives.
 
-- Environment
-  - `EnableRoomEffects(bool)`, `SetReflectionProperties(const ReflectionProperties&)`, `SetReverbProperties(const ReverbProperties&)` map to bridge methods. On C++ side convert the generated `ReflectionProperties` into `vraudio::ReflectionProperties` then call library method.
 
-## Checklist for implementation
+## cxx bridge reference (AudioVerseEngine)
 
-- [x] Use `resonance_audio_api.h` as source of truth for method names and parameter orders.
-- [x] Expose factories as `UniquePtr<Api>`.
-- [x] Expose buffer methods as slice-based Rust signatures and `rust::Slice` on the C++ side.
-- [x] Mirror enums and POD structs exactly in the bridge `#[cxx::bridge]`.
+This file documents the minimal, practical pattern we use across this repository to expose selected C++ APIs to Rust using the `cxx` crate. It is intentionally short and focused: follow the checklist below, then consult `docs/resonance_cxx_guidance.md` for worked examples and troubleshooting.
 
----
+Key goals
 
-If you want, I'll now implement the `resonance-cxx` crate files (Rust bridge, `cxx/include/resonance_bridge.h`, `cxx/src/resonance_bridge.cc`, `build.rs`, Cargo.toml) using the header above as authoritative and then run `cargo build` to iterate until it compiles. Proceeding next unless you prefer to review this reference first.
-cxx reference
-=================
+- Keep the Rust-facing `#[cxx::bridge]` small and explicit: declare only POD structs, enums, and an opaque `Api` type.
+- Implement a thin C++ wrapper (in `cxx/include` + `cxx/src`) that owns the real upstream object and forwards calls while performing simple validation and lightweight conversions.
+- Centralize build and linking decisions in `build.rs`. Allow using prebuilt upstream artifacts (via environment variables) or build them locally with CMake when necessary.
 
-This file summarizes the important `cxx` rules, method signatures, and patterns to follow when implementing the `resonance-cxx` crate.
+When to use this pattern
 
-Key points
-- Add `cxx = "1.0"` to `[dependencies]` and `cxx-build = "1.0"` to `[build-dependencies]`.
-- Use `#[cxx::bridge]` to declare shared types and `unsafe extern "C++"` blocks for C++ functions/opaque types.
-- For C++ `std::unique_ptr<T>` return types use `UniquePtr<T>` on Rust side.
-- Opaque C++ types are declared as `type Api;` within the `unsafe extern "C++"` block.
-- For functions that accept/return slices use `rust::Slice<T>` on C++ side and `&[T]`/`&mut [T]` on Rust side.
-- For `std::string` interoperability use `&CxxString` / `String` and include the generated header.
-- When declaring enums with numeric layout, use `#[repr(i32)]` on Rust side to match C++ `int` sized enums. Always provide a `_`/fallback arm when matching shared enums.
-- For `UniquePtr<T>` template instantiation across modules, add `impl UniquePtr<T> {}` in the bridge where `T` is declared if needed.
-- Use `cxx_build::bridge("src/bridge.rs")` in `build.rs` and add `.file(...)` for C++ implementation files. Use `.std("c++17")` or `.flag_if_supported("-std=c++17")` to enable the desired standard.
-- Use `CFG.include_prefix` or `CFG.exported_header_dirs`/`CFG.exported_header_prefixes` if you need custom include paths or to re-export headers to downstream crates.
-- For functions returning `Result<T>`, declare `Result<T>` in the bridge and handle `cxx::Exception` on the Rust side; C++ exceptions are converted to `cxx::Exception`.
+- Use it for stable, well-understood APIs where copying small PODs across the boundary is sufficient.
+- Avoid passing large or frequently-updated buffers across the bridge; instead, design a controlled API that accepts slices for one-time transfers or uses shared memory patterns.
 
-Common type mappings
-- Rust & C++ slice: Rust `&[T]` / `&mut [T]` <-> C++ `rust::Slice<const T>` / `rust::Slice<T>`
-- Rust Vec<T> <-> C++ `rust::Vec<T>` (C++ can iterate using range-for)
-- Rust &str / String <-> C++ `rust::Str` / `rust::String` / `const std::string&`
-- Rust UniquePtr<T> <-> C++ `std::unique_ptr<T>`
+Checklist to add a new C++ API to Rust
 
-Build tips
+1) Design the Rust surface
+
+  - Create a minimal `#[cxx::bridge]` module that exposes only the types and functions you need. Example minimal bridge:
+
+    - Declare POD structs and enums with identical field layouts in Rust and C++.
+    - Declare an opaque `type Api;` and a factory that returns `UniquePtr<Api>`.
+
+  - Keep error handling simple: return booleans or numeric error codes, or use a small POD `Result` struct that contains an error code + optional message.
+
+2) Add C++ wrapper header (cxx/include)
+
+  - Add a header (example: `cxx/include/myapi_bridge.h`) that declares a wrapper namespace/class, e.g. `namespace myapi { class Api { ... }; }` and an extern factory function `std::unique_ptr<myapi::Api> make_api(...);`.
+
+  - The wrapper header should include only lightweight upstream headers or forward-declare upstream types. Keep it stable and small so cxx generated headers don't pull large transitive includes.
+
+3) Implement wrapper (cxx/src)
+
+  - Implement the wrapper class to own a `std::unique_ptr<UpstreamApi>` (or other RAII wrapper) and forward calls.
+
+  - Validate inputs and buffer sizes on the C++ side. For example, when a Rust function sends an interleaved slice with `frames * channels` floats, assert that the slice length matches and return an error if it doesn't.
+
+  - Convert enums and map POD fields explicitly. Don't assume identical internal representations unless it's trivial and documented.
+
+4) Rust-side helpers
+
+  - Implement small Rust helper functions that convert idiomatic Rust types (Vec, &str) into the PODs expected by the cxx bridge.
+
+  - Keep copying predictable: copy small vectors/slices into the cxx-safe types and avoid leaking raw pointers across threads.
+
+5) build.rs and linking
+
+  - The crate's `build.rs` should handle two modes:
+    - Use prebuilt upstream artifacts when environment variables like `UPSTREAM_LIB_DIR` and `UPSTREAM_LIB_NAME` are set.
+    - Otherwise, try to invoke CMake (or the upstream project's build) to build the required static/dynamic library into `OUT_DIR`.
+
+  - After locating/building the library, emit `cargo:rustc-link-search=native=...` and `cargo:rustc-link-lib=static|dylib=...` as appropriate.
+
+  - Use `cxx_build::bridge("src/lib.rs")` to build the generated glue sources and include the `OUT_DIR` path for headers if needed.
+
+6) Tests and CI
+
+  - Add unit tests that exercise the Rust-facing API. Use small, deterministic inputs and verify outputs.
+
+  - If building upstream C++ is expensive, provide prebuilt artifacts for CI or use a small mock implementation behind the same wrapper for fast tests.
+
+Practical examples and notes
+
+- Wrapper ownership: prefer `std::unique_ptr<UpstreamApi>` inside the wrapper class and return `UniquePtr<Api>` to Rust. This matches Rust ownership semantics and keeps the bridge logic trivial.
+
+- POD alignment: ensure both sides declare fields in the same order and with compatible primitive types. Use static asserts on the C++ side when helpful.
+
+- Buffer validation: check `channels * frames == slice.len()` before accessing the buffer contents.
+
+- Enum mapping: if an upstream enum changes, update both the C++ wrapper and the Rust enum; keep a mapping function in the wrapper implementation.
+
+Common pitfalls
+
+- Pulling large upstream headers into `cxx::bridge` causes long compile times and fragile dependency graphs; prefer forward declarations in the wrapper header.
+- Returning non-POD types across the bridge or capturing STL containers directly is unsupported; convert to PODs or `UniquePtr`/`String` helpers.
+- Relying on implicit integer sizes (e.g., `int`) can break portability; pick explicit-sized types (`int32_t`, `uint64_t`) in C++ and matching Rust types.
+
+References and further reading
+
+- See `docs/resonance_cxx_guidance.md` for a step-by-step example that follows this pattern in this repository.
+- Inspect the `resonance-cxx` crate in the workspace to see a production example of this pattern: `cxx/include/resonance_bridge.h` and `cxx/src/resonance_bridge.cc`.
+
+Quick checklist (copyable)
+
+- [ ] Add `#[cxx::bridge]` with PODs/enums and `type Api;`.
+- [ ] Add `cxx/include/<api>_bridge.h` with wrapper declaration and factory.
+- [ ] Implement `cxx/src/<api>_bridge.cc` forwarding to upstream API and performing validations.
+- [ ] Update `build.rs` to find/build upstream lib and call `cxx_build::bridge(...)`.
+- [ ] Add Rust helper helpers for conversions and small unit tests.
+
+License
+
+This reference is specific to the AudioVerseEngine repo and reflects conventions used by the maintainers.
 - Ensure `println!("cargo:rerun-if-changed=...")` is present in `build.rs` for bridge.rs, headers, and .cc files.
 - If C++ functions are declared in the bridge but not implemented in C++ files, linking will fail with undefined references.
 - When developing without the external library, you can provide lightweight placeholder implementations in C++ that mimic signatures to allow linking during early development.
