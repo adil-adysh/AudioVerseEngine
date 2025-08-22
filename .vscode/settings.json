@@ -4,7 +4,8 @@
         "editor.formatOnSave": true
     },
     "files.associations": {
-        "*.rs": "rust"
+        "*.rs": "rust",
+        "memory": "cpp"
     },
     "rust-analyzer.cargo.autoreload": true,
     "rust-analyzer.checkOnSave.command": "clippy",

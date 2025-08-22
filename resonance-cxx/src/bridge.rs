@@ -51,6 +51,13 @@ pub mod ffi {
     #[rust_name = "fill_interleaved_output_buffer_i16"]
     fn FillInterleavedOutputBufferI16(self: Pin<&mut ResonanceAudioApi>, num_channels: usize, num_frames: usize, buffer: &mut [i16]) -> bool;
     
+    // Planar output (each channel is a separate buffer pointer)
+    #[rust_name = "fill_planar_output_buffer_f32"]
+    unsafe fn FillPlanarOutputBufferF32(self: Pin<&mut ResonanceAudioApi>, num_channels: usize, num_frames: usize, buffers: *const *mut f32) -> bool;
+
+    #[rust_name = "fill_planar_output_buffer_i16"]
+    unsafe fn FillPlanarOutputBufferI16(self: Pin<&mut ResonanceAudioApi>, num_channels: usize, num_frames: usize, buffers: *const *mut i16) -> bool;
+    
     // Head / global
     #[rust_name = "set_head_position"]
     fn SetHeadPosition(self: Pin<&mut ResonanceAudioApi>, x: f32, y: f32, z: f32);
@@ -94,6 +101,15 @@ pub mod ffi {
 
     #[rust_name = "set_interleaved_buffer_i16"]
     fn SetInterleavedBufferI16(self: Pin<&mut ResonanceAudioApi>, source_id: i32, audio: &[i16], num_channels: usize, num_frames: usize);
+    
+    // Planar buffer entrypoints accepting array-of-pointers from the C++ side.
+    // We expose pointer-based planar setters so high-performance callers can
+    // build per-channel pointers in C++ and call directly.
+    #[rust_name = "set_planar_buffer_f32_ptrs"]
+    unsafe fn SetPlanarBufferF32(self: Pin<&mut ResonanceAudioApi>, source_id: i32, audio_ptrs: *const *const f32, num_channels: usize, num_frames: usize);
+
+    #[rust_name = "set_planar_buffer_i16_ptrs"]
+    unsafe fn SetPlanarBufferI16(self: Pin<&mut ResonanceAudioApi>, source_id: i32, audio_ptrs: *const *const i16, num_channels: usize, num_frames: usize);
 
     #[rust_name = "set_source_distance_attenuation"]
     fn SetSourceDistanceAttenuation(self: Pin<&mut ResonanceAudioApi>, source_id: i32, distance_attenuation: f32);
