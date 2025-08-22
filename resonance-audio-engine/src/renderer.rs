@@ -21,7 +21,8 @@ impl Renderer {
 
     /// Fill interleaved output. `buffer` must be `num_frames * num_channels` long.
     pub fn process_output_interleaved(&mut self, buffer: &mut [f32], num_frames: usize) -> bool {
-        self.api.fill_interleaved_f32(self.num_channels, num_frames, buffer)
+        self.api
+            .fill_interleaved_f32(self.num_channels, num_frames, buffer)
     }
 
     /// Fill planar output using safe helper that accepts slices per channel.
