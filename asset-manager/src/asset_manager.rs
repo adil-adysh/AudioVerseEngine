@@ -5,6 +5,10 @@ use std::path::Path;
 use crate::sfx_loader;
 pub use crate::sfx_loader::SfxMetadata;
 // streaming_loader is only referenced when the streaming feature is enabled.
+// Re-export StreamingAsset when the feature is enabled (placed before tests
+// to satisfy clippy's `items_after_test_module` lint).
+#[cfg(feature = "streaming")]
+pub use crate::streaming_loader::StreamingAsset;
 
 #[derive(Debug)]
 pub enum Error {
@@ -90,6 +94,4 @@ mod tests {
     }
 }
 
-// Use the separate streaming loader implementation when the feature is enabled.
-#[cfg(feature = "streaming")]
-pub use crate::streaming_loader::StreamingAsset;
+

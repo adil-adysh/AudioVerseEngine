@@ -31,8 +31,8 @@ fn scratch_resize_and_reuse_i16() {
     let src = api.create_stereo_source(2);
     if src < 0 { eprintln!("skipping scratch test: stereo source not supported"); return; }
 
-    let c0 = vec![1i16; 64];
-    let c1 = vec![2i16; 64];
+    let c0 = [1i16; 64];
+    let c1 = [2i16; 64];
     let channels: Vec<&[i16]> = vec![&c0[..], &c1[..]];
 
     let mut scratch: Vec<i16> = Vec::with_capacity(4);

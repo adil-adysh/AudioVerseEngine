@@ -1,12 +1,11 @@
+use asset_manager::pkg_format::{AssetIndexEntry, AssetType, PkgHeader};
+use bincode::config::standard;
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs::File;
-use std::io::{Write, Seek, SeekFrom};
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use bincode::config::standard;
-use bincode::Encode;
-use sha2::{Sha256, Digest};
 use walkdir::WalkDir;
-use asset_manager::pkg_format::{PkgHeader, AssetIndexEntry, AssetType};
 
 // Smarter packer:
 // - Accepts files and directories; directories are scanned recursively
@@ -17,17 +16,23 @@ use asset_manager::pkg_format::{PkgHeader, AssetIndexEntry, AssetType};
 fn probe_audio_metadata(path: &Path) -> Option<(u32, u16)> {
     // Use symphonia to probe sample rate and channels for supported audio files
     if let Ok(file) = std::fs::File::open(path) {
-        use symphonia::default::{get_probe};
         use symphonia::core::formats::FormatOptions;
-        use symphonia::core::meta::MetadataOptions;
         use symphonia::core::io::MediaSourceStream;
+        use symphonia::core::meta::MetadataOptions;
+        use symphonia::default::get_probe;
 
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
-        if let Ok(probed) = get_probe().format(&Default::default(), mss, &FormatOptions::default(), &MetadataOptions::default()) {
+        if let Ok(probed) = get_probe().format(
+            &Default::default(),
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        ) {
             if let Some(track) = probed.format.default_track() {
                 if let Some(params) = track.codec_params.sample_rate {
-                    let channels = track.codec_params.channels.map(|c| c.count()).unwrap_or(0) as u16;
-                    return Some((params as u32, channels));
+                    let channels =
+                        track.codec_params.channels.map(|c| c.count()).unwrap_or(0) as u16;
+                    return Some((params, channels));
                 }
             }
         }
@@ -50,18 +55,20 @@ fn collect_inputs(args: &[String], recursive: bool) -> Vec<PathBuf> {
         let pb = PathBuf::from(p);
         if pb.is_dir() {
             if recursive {
-                for entry in WalkDir::new(&pb).follow_links(true).into_iter().filter_map(|e| e.ok()) {
+                for entry in WalkDir::new(&pb)
+                    .follow_links(true)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
                     if entry.file_type().is_file() {
                         files.push(entry.path().to_path_buf());
                     }
                 }
-            } else {
-                if let Ok(rd) = std::fs::read_dir(&pb) {
-                    for e in rd.filter_map(|r| r.ok()) {
-                        let p = e.path();
-                        if p.is_file() {
-                            files.push(p);
-                        }
+            } else if let Ok(rd) = std::fs::read_dir(&pb) {
+                for e in rd.filter_map(|r| r.ok()) {
+                    let p = e.path();
+                    if p.is_file() {
+                        files.push(p);
                     }
                 }
             }
@@ -121,12 +128,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut entries: Vec<AssetIndexEntry> = Vec::new();
     for path in inputs.iter() {
         let data = std::fs::read(path)?;
-        let offset = f.seek(SeekFrom::Current(0))?;
+        let offset = f.stream_position()?;
         f.write_all(&data)?;
         let size = data.len() as u64;
         let checksum = compute_checksum(&data);
 
-        let asset_type = match path.extension().and_then(|s| s.to_str()).map(|s| s.to_lowercase()).as_deref() {
+        let asset_type = match path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_lowercase())
+            .as_deref()
+        {
             Some("sfx") => AssetType::Sfx,
             Some("wav") | Some("ogg") | Some("mp3") => AssetType::Music,
             _ => AssetType::Other,
@@ -155,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let index_bytes = bincode::encode_to_vec(&entries, standard())?;
-    let index_offset = f.seek(SeekFrom::Current(0))?;
+    let index_offset = f.stream_position()?;
     f.write_all(&index_bytes)?;
 
     let header = PkgHeader::new(index_offset, &index_bytes, 0);

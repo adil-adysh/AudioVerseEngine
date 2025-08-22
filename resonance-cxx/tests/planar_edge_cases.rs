@@ -4,7 +4,7 @@ use resonance_cxx::Api;
 fn mismatched_channel_lengths_fill_f32() {
     let mut api = Api::new(2, 64, 48000).expect("failed to create Api");
     let mut ch0 = vec![0f32; 64];
-    let mut ch1 = vec![0f32; 32]; // mismatched
+    let mut ch1 = [0f32; 32]; // mismatched
     let mut channels: Vec<&mut [f32]> = vec![&mut ch0[..], &mut ch1[..]];
     let ok = api.fill_planar_f32(&mut channels[..]);
     assert!(!ok, "expected false due to mismatched channel lengths");
@@ -14,8 +14,8 @@ fn mismatched_channel_lengths_fill_f32() {
 fn mismatched_channel_lengths_set_i16() {
     let mut api = Api::new(2, 64, 48000).expect("failed to create Api");
     let src = api.create_stereo_source(2);
-    let c0 = vec![0i16; 64];
-    let c1 = vec![0i16; 32]; // mismatched
+    let c0 = [0i16; 64];
+    let c1 = [0i16; 32]; // mismatched
     let channels: Vec<&[i16]> = vec![&c0[..], &c1[..]];
     let ok = api.set_planar_buffer_i16(src, &channels[..], 64);
     assert!(!ok, "expected false due to mismatched channel lengths");

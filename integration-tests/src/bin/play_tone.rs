@@ -264,7 +264,7 @@ fn main() {
         pan: f32, // -1.0 = left, 0.0 = center, +1.0 = right
     }
 
-    let test_cases = vec![
+    let test_cases = [
         TestCase { name: "sine-440-center", waveform: Waveform::Sine, freq: 440.0, duration_s: 2.0, pan: 0.0 },
         TestCase { name: "square-220-left", waveform: Waveform::Square, freq: 220.0, duration_s: 2.0, pan: -0.8 },
         TestCase { name: "triangle-660-right", waveform: Waveform::Triangle, freq: 660.0, duration_s: 2.0, pan: 0.8 },
@@ -277,7 +277,8 @@ fn main() {
     for tc in test_cases.iter() {
         println!("Running test: {} ({} Hz, pan={})", tc.name, tc.freq, tc.pan);
         let frames_per_block = num_frames;
-        let blocks = ((tc.duration_s * sample_rate) as usize + frames_per_block - 1) / frames_per_block;
+    
+    let blocks = ((tc.duration_s * sample_rate) as usize).div_ceil(frames_per_block);
 
         // generate one block for this test, then submit it `blocks` times
         let mut block_buf = vec![0f32; frames_per_block * channels];

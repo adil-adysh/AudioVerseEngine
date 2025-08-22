@@ -370,7 +370,7 @@ mod real_audio_tests {
     #[ignore]
     #[serial]
     fn exercise_resonance_cxx_api_surface() {
-        let mut backend = create_audio_backend().expect("create backend");
+        let backend = create_audio_backend().expect("create backend");
         let backend_sr = backend.sample_rate();
         let backend_buf = backend.buffer_size();
         let frames_per_buffer = if backend_buf == 0 { 256 } else { backend_buf };

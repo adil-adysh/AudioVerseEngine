@@ -39,6 +39,12 @@ pub fn create_audio_backend() -> Result<Box<dyn AudioBackend>, BackendError> {
     Ok(Box::new(MockAudioBackend::new()))
 }
 
+impl Default for MockAudioBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockAudioBackend {
     pub fn new() -> Self {
         let shared_state = Arc::new(Mutex::new(MockSharedState {
@@ -76,8 +82,8 @@ impl MockAudioBackend {
                     }
                 }
 
-                if mock_state.lock().unwrap().is_running {
-                    if let Some(render) = &render_fn {
+                if mock_state.lock().unwrap().is_running
+                    && let Some(render) = &render_fn {
                         // Simulate the audio callback by calling the render function.
                         // Catch panics from the render closure so the mock worker stays alive
                         // and follows the real-backend contract: on panic, output silence.
@@ -93,7 +99,6 @@ impl MockAudioBackend {
 
                         mock_state.lock().unwrap().frames_since_start += frames as u64;
                     }
-                }
                 
                 // Simulate a time interval to prevent the loop from spinning too fast.
                 thread::sleep(Duration::from_millis(5));
