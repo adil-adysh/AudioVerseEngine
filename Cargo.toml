@@ -12,4 +12,6 @@ members = [
 	,
 	"integration-tests",
 	"tools/asset-packer"
+	,"tools/sfx-convert"
+	,"tools/asset-utils"
 ]

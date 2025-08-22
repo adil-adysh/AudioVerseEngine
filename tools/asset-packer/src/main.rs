@@ -2,7 +2,7 @@ use asset_manager::pkg_format::{AssetIndexEntry, AssetType, PkgHeader};
 use bincode::config::standard;
 use sha2::{Digest, Sha256};
 use std::env;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -81,9 +81,115 @@ fn collect_inputs(args: &[String], recursive: bool) -> Vec<PathBuf> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        eprintln!("usage: asset-packer [-r|--recursive] out.pkg path_or_file [path_or_file ...]");
-        std::process::exit(1);
+    // Support quick "--pack-assets" convenience mode that packs repo `assets/` dirs:
+    // - assets/sfx -> convert eligible files to .sfx and pack as Sfx
+    // - assets/audio -> pack raw files as Music
+    // Output: assets/dest/out.pkg
+    if args.len() == 2 && args[1] == "--pack-assets" {
+        let repo_root = Path::new(".");
+        let sfx_dir = repo_root.join("assets/sfx");
+        let audio_dir = repo_root.join("assets/audio");
+        let dest_dir = repo_root.join("assets/dest");
+        fs::create_dir_all(&dest_dir)?;
+        let out_pkg = dest_dir.join("out.pkg");
+
+        // build file list: sfx files converted to .sfx in-memory, audio files raw
+        let mut entries: Vec<(String, Vec<u8>, AssetType, u32, u16)> = Vec::new();
+
+        // helper: process directory for raw audio files
+        if audio_dir.exists() {
+            for entry in walkdir::WalkDir::new(&audio_dir).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    let p = entry.path().to_path_buf();
+                    let data = fs::read(&p)?;
+                    let name = p.strip_prefix(repo_root).unwrap_or(&p).to_string_lossy().into_owned();
+                    let mut sample_rate = 0u32;
+                    let mut channels = 0u16;
+                    if let Some((sr, ch)) = probe_audio_metadata(&p) {
+                        sample_rate = sr;
+                        channels = ch;
+                    }
+                    entries.push((name, data, AssetType::Music, sample_rate, channels));
+                }
+            }
+        }
+
+        // process sfx dir: convert supported sources to SFX bytes
+        if sfx_dir.exists() {
+            // use asset-utils crate to convert
+            use asset_utils::convert_to_sfx_bytes;
+            for entry in walkdir::WalkDir::new(&sfx_dir).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    let p = entry.path().to_path_buf();
+                    // only attempt supported extensions
+                    if let Some(ext) = p.extension().and_then(|s| s.to_str()).map(|s| s.to_lowercase()) {
+                        match ext.as_str() {
+                            "wav" | "ogg" | "opus" => {
+                                let bytes = convert_to_sfx_bytes(&p)?;
+                                let name = p.with_extension("sfx");
+                                let name = name.strip_prefix(repo_root).unwrap_or(&name).to_string_lossy().into_owned();
+                                entries.push((name, bytes, AssetType::Sfx, 48000u32, 2u16));
+                            }
+                            "sfx" => {
+                                let data = fs::read(&p)?;
+                                let name = p.strip_prefix(repo_root).unwrap_or(&p).to_string_lossy().into_owned();
+                                // probe header for sample rate/channels
+                                let mut sr = 0u32;
+                                let mut ch = 0u16;
+                                if let Ok((_, meta)) = asset_manager::sfx_loader::load_sfx_path(&p) {
+                                    sr = meta.sample_rate;
+                                    ch = meta.channels;
+                                }
+                                entries.push((name, data, AssetType::Sfx, sr, ch));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        // now write package
+        let mut f = File::create(&out_pkg)?;
+        let header_placeholder = vec![0u8; 512];
+        f.write_all(&header_placeholder)?;
+
+        let mut index_entries: Vec<AssetIndexEntry> = Vec::new();
+        for (name, data, asset_type, sample_rate, channels) in entries.iter() {
+            let offset = f.stream_position()?;
+            f.write_all(data)?;
+            let size = data.len() as u64;
+            let checksum = compute_checksum(data);
+            index_entries.push(AssetIndexEntry {
+                name: name.clone(),
+                asset_type: asset_type.clone(),
+                offset,
+                size,
+                sample_rate: *sample_rate,
+                channels: *channels,
+                flags: 0,
+                checksum: Some(checksum),
+            });
+        }
+
+        let index_bytes = bincode::encode_to_vec(&index_entries, standard())?;
+        let index_offset = f.stream_position()?;
+        f.write_all(&index_bytes)?;
+
+        let header = PkgHeader::new(index_offset, &index_bytes, 0);
+        let header_bytes = bincode::encode_to_vec(&header, standard())?;
+        f.seek(SeekFrom::Start(0))?;
+        if header_bytes.len() > header_placeholder.len() {
+            return Err("header too large for placeholder".into());
+        }
+        f.write_all(&header_bytes)?;
+        let pad = header_placeholder.len() - header_bytes.len();
+        if pad > 0 {
+            f.write_all(&vec![0u8; pad])?;
+        }
+
+        println!("wrote {} with {} assets", out_pkg.display(), index_entries.len());
+        return Ok(());
     }
 
     // simple flag parsing: accept -r/--recursive and --no-recursive before the out file

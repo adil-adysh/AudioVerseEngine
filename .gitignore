@@ -30,3 +30,11 @@ third_party/
 # If you want to track submodule changes, prefer `git submodule` commands or configure submodule.ignore.
 resonance-audio/
 
+# Ignore local asset outputs and sources by default
+assets/dest/
+# Keep directory placeholders tracked, ignore everything else
+assets/sfx/
+!assets/sfx/.gitkeep
+assets/audio/
+!assets/audio/.gitkeep
+

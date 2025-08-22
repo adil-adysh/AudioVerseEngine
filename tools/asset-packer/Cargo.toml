@@ -8,6 +8,7 @@ bincode = { version = "2.0", features = ["derive"] }
 sha2 = "0.10"
 walkdir = "2.3"
 symphonia = { version = "0.5.4", features = ["all"] }
+asset-utils = { path = "../asset-utils" }
 
 [dependencies.asset_manager]
 path = "../../asset-manager"
