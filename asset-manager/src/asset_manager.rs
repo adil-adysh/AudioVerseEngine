@@ -46,7 +46,7 @@ impl AssetManager {
     pub fn load_sfx(&self, name: &str) -> Result<(Vec<f32>, SfxMetadata), Error> {
         let path = self.assets.get(name).ok_or(Error::NotFound)?;
         let p = Path::new(path);
-        sfx_loader::load_sfx_path(p)
+    sfx_loader::load_sfx_path_with_target(p, sfx_loader::TARGET_SAMPLE_RATE)
     }
 
     /// Load a streaming asset; feature-gated stub that returns a StreamingAsset handle.

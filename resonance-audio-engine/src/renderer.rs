@@ -1,18 +1,18 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use crossbeam_queue::ArrayQueue;
-use glam::{Vec3, Quat};
+use glam::{Quat, Vec3};
 use resonance_cxx::{Api, RenderingMode};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use ringbuf::HeapCons;
-use ringbuf::traits::Consumer;
 use asset_manager::sfx_loader::SfxMetadata;
+use ringbuf::traits::Consumer;
+use ringbuf::HeapCons;
 
 // ringbuffer implementation is provided by the `ringbuf` crate via HeapRb/HeapCons
 
 // ---------- Config ----------
-const MAX_SOURCES: usize = 256;        // pool size (tunable)
-const CMD_QUEUE_CAP: usize = 1024;     // bounded command queue
+const MAX_SOURCES: usize = 256; // pool size (tunable)
+const CMD_QUEUE_CAP: usize = 1024; // bounded command queue
 
 // ---------- Types ----------
 #[derive(Debug, Clone)]
@@ -41,8 +41,14 @@ mod tests {
         let mut out = vec![0.0f32; large_frames * num_channels];
         let _ = r.process_output_interleaved(&mut out, large_frames);
 
-        assert!(r.stream_scratch.len() >= large_frames * num_channels, "stream_scratch should grow to accommodate large buffers");
-        assert!(r.stream_scratch.len() >= initial, "scratch len should be at least initial");
+        assert!(
+            r.stream_scratch.len() >= large_frames * num_channels,
+            "stream_scratch should grow to accommodate large buffers"
+        );
+        assert!(
+            r.stream_scratch.len() >= initial,
+            "scratch len should be at least initial"
+        );
     }
 }
 
@@ -53,13 +59,32 @@ pub enum Command {
         gain: f32,
         pos: Option<Vec3>,
     },
-    StopVoice { slot: usize },
-    SetVoiceGain { slot: usize, gain: f32 },
-    StartStream { slot: usize, ring: HeapCons<f32>, channels: usize },
-    StopStream { slot: usize },
-    CreateSource { slot: usize, mode: RenderingMode },
-    DestroySource { slot: usize },
-    SetListenerPose { position: Vec3, rotation: Quat },
+    StopVoice {
+        slot: usize,
+    },
+    SetVoiceGain {
+        slot: usize,
+        gain: f32,
+    },
+    StartStream {
+        slot: usize,
+        ring: HeapCons<f32>,
+        channels: usize,
+    },
+    StopStream {
+        slot: usize,
+    },
+    CreateSource {
+        slot: usize,
+        mode: RenderingMode,
+    },
+    DestroySource {
+        slot: usize,
+    },
+    SetListenerPose {
+        position: Vec3,
+        rotation: Quat,
+    },
 }
 
 pub struct Voice {
@@ -90,7 +115,6 @@ pub struct StreamSlot {
     channels: usize,
     spatial_src_id: Option<i32>,
 }
-
 
 // ---------- Renderer ----------
 pub struct Renderer {
@@ -131,7 +155,40 @@ impl Renderer {
         }
     }
 
-    pub fn command_sender(&self) -> Arc<ArrayQueue<Command>> { self.cmd_queue.clone() }
+    pub fn command_sender(&self) -> Arc<ArrayQueue<Command>> {
+        self.cmd_queue.clone()
+    }
+
+    /// Debug: count active voices (threadsafe)
+    pub fn debug_active_voice_count(&self) -> usize {
+        self.voices
+            .iter()
+            .filter(|v| v.active.load(Ordering::Acquire))
+            .count()
+    }
+
+    /// Debug: return simple info for a voice slot (active, remaining_frames)
+    pub fn debug_voice_info(&self, slot: usize) -> Option<(bool, usize)> {
+        if slot >= self.voices.len() {
+            return None;
+        }
+        let v = &self.voices[slot];
+        let active = v.active.load(Ordering::Acquire);
+        let remaining = if let Some(ref meta) = v.meta {
+            if let Some(ref sfx_arc) = v.sfx {
+                let samples = &**sfx_arc;
+                let channels = meta.channels as usize;
+                let frames_total = samples.len() / channels;
+                let played_frames = v.playhead / channels;
+                frames_total.saturating_sub(played_frames)
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+        Some((active, remaining))
+    }
 
     pub fn alloc_slot(&mut self) -> Option<usize> {
         for (i, v) in self.voices.iter().enumerate() {
@@ -175,9 +232,17 @@ impl Renderer {
                     self.streams[slot].spatial_src_id = None;
                 }
             }
-            Command::PlaySfx { slot, buffer, gain, pos } => {
+            Command::PlaySfx {
+                slot,
+                buffer,
+                gain,
+                pos,
+            } => {
                 if slot < self.voices.len() {
                     let v = &mut self.voices[slot];
+                    // Lightweight log for diagnostics: indicate PlaySfx application
+                    println!("[renderer] apply_command: PlaySfx -> slot={} sr={} ch={} gain={}",
+                        slot, buffer.meta.sample_rate, buffer.meta.channels, gain);
                     v.sfx = Some(buffer.samples.clone());
                     v.meta = Some(buffer.meta.clone());
                     v.playhead = 0;
@@ -185,7 +250,8 @@ impl Renderer {
                     v.active.store(true, Ordering::Release);
                     if let Some(position) = pos {
                         if let Some(Some(src)) = self.sources.get(slot) {
-                            self.api.set_source_position(*src, position.x, position.y, position.z);
+                            self.api
+                                .set_source_position(*src, position.x, position.y, position.z);
                         }
                     }
                 }
@@ -200,9 +266,15 @@ impl Renderer {
                 }
             }
             Command::SetVoiceGain { slot, gain } => {
-                if slot < self.voices.len() { self.voices[slot].gain = gain; }
+                if slot < self.voices.len() {
+                    self.voices[slot].gain = gain;
+                }
             }
-            Command::StartStream { slot, ring, channels } => {
+            Command::StartStream {
+                slot,
+                ring,
+                channels,
+            } => {
                 if slot < self.streams.len() {
                     let s = &mut self.streams[slot];
                     s.ring = Some(ring);
@@ -217,8 +289,10 @@ impl Renderer {
                 }
             }
             Command::SetListenerPose { position, rotation } => {
-                self.api.set_head_position(position.x, position.y, position.z);
-                self.api.set_head_rotation(rotation.x, rotation.y, rotation.z, rotation.w);
+                self.api
+                    .set_head_position(position.x, position.y, position.z);
+                self.api
+                    .set_head_rotation(rotation.x, rotation.y, rotation.z, rotation.w);
             }
         }
     }
@@ -239,15 +313,20 @@ impl Renderer {
             }
         }
 
-        for sample in buffer.iter_mut() { *sample = 0.0; }
+        for sample in buffer.iter_mut() {
+            *sample = 0.0;
+        }
 
         for v in &mut self.voices {
-            if !v.active.load(Ordering::Acquire) { continue; }
+            if !v.active.load(Ordering::Acquire) {
+                continue;
+            }
             if let Some(ref sfx_arc) = v.sfx {
                 let samples = &**sfx_arc;
                 if let Some(ref meta) = v.meta {
                     let channels = meta.channels as usize;
-                    let frames_available = (samples.len() / channels).saturating_sub(v.playhead / channels);
+                    let frames_available =
+                        (samples.len() / channels).saturating_sub(v.playhead / channels);
                     let frames_to_mix = frames_available.min(num_frames);
                     for frame in 0..frames_to_mix {
                         let src_base = v.playhead + frame * channels;
@@ -268,7 +347,7 @@ impl Renderer {
         }
 
         // stream mixing: reuse preallocated scratch to avoid allocation
-    let scratch_len = num_frames * self.num_channels;
+        let scratch_len = num_frames * self.num_channels;
         if self.stream_scratch.len() < scratch_len {
             // grow scratch to accommodate larger backend buffers
             self.stream_scratch.resize(scratch_len, 0.0f32);
@@ -278,13 +357,16 @@ impl Renderer {
             if let Some(ref mut cons) = s.ring {
                 let popped = cons.pop_slice(scratch);
                 if popped > 0 {
-            // popped is number of samples written into scratch; clamp to buffer
-            let to_add = popped.min(buffer.len());
-            for i in 0..to_add { buffer[i] += scratch[i]; }
+                    // popped is number of samples written into scratch; clamp to buffer
+                    let to_add = popped.min(buffer.len());
+                    for i in 0..to_add {
+                        buffer[i] += scratch[i];
+                    }
                 }
             }
         }
 
-        self.api.fill_interleaved_f32(self.num_channels, num_frames, buffer)
+        self.api
+            .fill_interleaved_f32(self.num_channels, num_frames, buffer)
     }
 }

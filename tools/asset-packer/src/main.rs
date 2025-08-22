@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 // probe header for sample rate/channels
                                 let mut sr = 0u32;
                                 let mut ch = 0u16;
-                                if let Ok((_, meta)) = asset_manager::sfx_loader::load_sfx_path(&p) {
+                                if let Ok((_, meta)) = asset_manager::sfx_loader::load_sfx_path_with_target(&p, asset_manager::sfx_loader::TARGET_SAMPLE_RATE) {
                                     sr = meta.sample_rate;
                                     ch = meta.channels;
                                 }

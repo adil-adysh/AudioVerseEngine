@@ -10,6 +10,7 @@ crossbeam-channel = "0.5"
 
 [dev-dependencies]
 resonance-cxx = { path = "../resonance-cxx" }
+resonance-audio-engine = { path = "../resonance-audio-engine" }
 
 [features]
 # The mock-audio feature enables the mock backend for tests and specific builds.

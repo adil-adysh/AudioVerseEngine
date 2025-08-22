@@ -8,24 +8,26 @@ pub struct SfxMetadata {
     pub loop_points: Option<(u64, u64)>,
 }
 
-pub(crate) const TARGET_SAMPLE_RATE: u32 = 48000;
+pub const TARGET_SAMPLE_RATE: u32 = 48000;
 
-/// Load an SFX/PCM file from disk and return interleaved f32 samples plus metadata.
-pub fn load_sfx_path(path: &std::path::Path) -> Result<(Vec<f32>, SfxMetadata), Error> {
+// Note: `load_sfx_path` was removed. Use `load_sfx_path_with_target(path, target_sample_rate)` instead.
+/// Load an SFX and ensure the returned samples are at `target_sample_rate`.
+pub fn load_sfx_path_with_target(
+    path: &std::path::Path,
+    target_sample_rate: u32,
+) -> Result<(Vec<f32>, SfxMetadata), Error> {
     let data = std::fs::read(path)?;
 
-    // Try headered parsing first
     if let Ok((samples, meta)) = parse_pcm_sfx_data(&data) {
-        // Resample to TARGET_SAMPLE_RATE if needed
-        if meta.sample_rate != TARGET_SAMPLE_RATE {
+        if meta.sample_rate != target_sample_rate {
             let samples = resample_interleaved(
                 &samples,
                 meta.sample_rate,
-                TARGET_SAMPLE_RATE,
+                target_sample_rate,
                 meta.channels as usize,
             );
             let meta = SfxMetadata {
-                sample_rate: TARGET_SAMPLE_RATE,
+                sample_rate: target_sample_rate,
                 ..meta
             };
             return Ok((samples, meta));
@@ -33,11 +35,10 @@ pub fn load_sfx_path(path: &std::path::Path) -> Result<(Vec<f32>, SfxMetadata), 
         return Ok((samples, meta));
     }
 
-    // Fallback: interpret entire blob as raw f32 interleaved
+    // Fallback: raw interleaved f32
     if data.len() % 4 != 0 {
         return Err(Error::Decode("pcm/sfx data length invalid".into()));
     }
-
     let mut samples = Vec::with_capacity(data.len() / 4);
     let mut i = 0usize;
     while i + 4 <= data.len() {
@@ -45,12 +46,18 @@ pub fn load_sfx_path(path: &std::path::Path) -> Result<(Vec<f32>, SfxMetadata), 
         samples.push(f32::from_le_bytes(b));
         i += 4;
     }
+    // if target differs from default, resample
+    let final_samples = if target_sample_rate != TARGET_SAMPLE_RATE {
+        resample_interleaved(&samples, TARGET_SAMPLE_RATE, target_sample_rate, 2)
+    } else {
+        samples
+    };
 
     Ok((
-        samples,
+        final_samples,
         SfxMetadata {
             channels: 2,
-            sample_rate: TARGET_SAMPLE_RATE,
+            sample_rate: target_sample_rate,
             loop_points: None,
         },
     ))
@@ -67,6 +74,8 @@ pub fn parse_pcm_sfx_data(data: &[u8]) -> Result<(Vec<f32>, SfxMetadata), Error>
         let sample_rate = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
 
         let mut loop_points: Option<(u64, u64)> = None;
+        // Determine header size: 8 bytes base, optional 16 bytes for loop points
+        let mut header_size = 8usize;
         if data.len() >= 24 {
             let start = u64::from_le_bytes([
                 data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15],
@@ -74,15 +83,18 @@ pub fn parse_pcm_sfx_data(data: &[u8]) -> Result<(Vec<f32>, SfxMetadata), Error>
             let end = u64::from_le_bytes([
                 data[16], data[17], data[18], data[19], data[20], data[21], data[22], data[23],
             ]);
-            // sanity: only accept loop if start < end
-            if start < end {
+            // sanity: only accept loop if start < end AND there is at least one sample following the extended header.
+            // This prevents misinterpreting a blob that is exactly 8-byte header + 16 bytes of samples (total 24)
+            // as an extended header with no samples.
+            if start < end && data.len() > 24 {
                 loop_points = Some((start, end));
+                header_size = 24usize;
             }
         }
 
         if channels > 0 && sample_rate > 0 {
-            let mut samples = Vec::with_capacity((data.len().saturating_sub(8)) / 4);
-            let mut i = 8usize;
+            let mut samples = Vec::with_capacity((data.len().saturating_sub(header_size)) / 4);
+            let mut i = header_size;
             while i + 4 <= data.len() {
                 let b = [data[i], data[i + 1], data[i + 2], data[i + 3]];
                 samples.push(f32::from_le_bytes(b));
@@ -102,7 +114,7 @@ pub fn parse_pcm_sfx_data(data: &[u8]) -> Result<(Vec<f32>, SfxMetadata), Error>
     Err(Error::Decode("no headered sfx data".into()))
 }
 
-pub(crate) fn resample_interleaved(
+pub fn resample_interleaved(
     samples: &[f32],
     from_rate: u32,
     to_rate: u32,
@@ -121,6 +133,23 @@ pub(crate) fn resample_interleaved(
 
     let frames = samples.len() / channels;
     let ratio = to_rate as f64 / from_rate as f64;
+
+    // For very small frames, avoid creating a heavy resampler; use simple nearest-neighbor resampling.
+    if frames == 0 {
+        return Vec::new();
+    }
+    if frames < 16 {
+        let out_frames = ((frames as f64) * ratio).ceil().max(1.0) as usize;
+        let mut out = vec![0.0f32; out_frames * channels];
+        for f in 0..out_frames {
+            let src_f = ((f as f64) / ratio).floor() as usize;
+            let src_f = std::cmp::min(src_f, frames - 1);
+            for ch in 0..channels {
+                out[f * channels + ch] = samples[src_f * channels + ch];
+            }
+        }
+        return out;
+    }
 
     // InterpolationParameters fields: sinc_len, f_cutoff, interpolation, oversampling_factor, window
     let params = InterpolationParameters {
