@@ -83,6 +83,7 @@ AudioVerseEngine has **three main layers**: Rust Core Engine, C++ Resonance Audi
 
   * Rust core engine design (crates & architecture planned).
   * `resonance-cxx` crate (C++ bridge to Resonance Audio).
+  * Renderer and Spatializer implementations (engine-side wrappers using `resonance-cxx`).
   * Windows audio backend with mock and tested implementation.
 
 * **Pending / Not Yet Implemented**:
@@ -90,6 +91,8 @@ AudioVerseEngine has **three main layers**: Rust Core Engine, C++ Resonance Audi
   * Full Rust engine core (ECS systems, source registry, ring buffers).
   * Android backend + Flutter/Dart integration.
   * Cross-platform build scripts, packaging, and example projects.
+  * Need testing of asset tools: asset manager and asset-packer.
+  * Write integration tests that validate the asset manager with the audio engine.
 
 ---
 
