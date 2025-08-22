@@ -1,0 +1,12 @@
+[package]
+name = "resonance-audio-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+resonance-cxx = { path = "../resonance-cxx" }
+cxx = "1.0"
+pin-utils = "0.1"
+
+[build-dependencies]
+cxx-build = "1.0"
