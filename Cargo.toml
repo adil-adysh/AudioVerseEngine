@@ -14,5 +14,6 @@ members = [
 	"tools/asset-packer"
 	,"tools/sfx-convert"
 	,"tools/asset-utils"
+	,"tools/pkg-validator"
 	,"resonance-audio-engine"
 ]

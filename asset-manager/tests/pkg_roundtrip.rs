@@ -1,5 +1,5 @@
-use asset_manager::pkg_format::{PkgHeader, AssetIndexEntry, AssetType};
 use asset_manager::asset_pkg::AssetPkg;
+use asset_manager::pkg_format::{AssetIndexEntry, AssetType, PkgHeader};
 use bincode::{config, encode_to_vec};
 use std::io::Write;
 
@@ -55,8 +55,8 @@ fn pkg_roundtrip() {
             e.offset += header_len;
         }
 
-    // re-encode index with absolute offsets
-    index_bytes = encode_to_vec(&abs_entries, config).expect("encode index abs");
+        // re-encode index with absolute offsets
+        index_bytes = encode_to_vec(&abs_entries, config).expect("encode index abs");
 
         let index_offset = header_len + a1.len() as u64 + a2.len() as u64;
         let hdr = PkgHeader::new(index_offset, &index_bytes, 0);
@@ -70,9 +70,9 @@ fn pkg_roundtrip() {
             break;
         }
 
-    hdr_bytes = new_hdr_bytes;
-    // store latest abs_entries for final write
-    final_entries = abs_entries;
+        hdr_bytes = new_hdr_bytes;
+        // store latest abs_entries for final write
+        final_entries = abs_entries;
     }
 
     // write final file: header, assets, index
@@ -91,4 +91,18 @@ fn pkg_roundtrip() {
     assert_eq!(foo, a1);
     let bar = pkg.read_asset_bytes("bar.wav").expect("read bar");
     assert_eq!(bar, a2);
+
+    // list names and iterator tests
+    let names = pkg.list_names();
+    assert!(names.contains(&"foo.sfx".to_string()));
+    assert!(names.contains(&"bar.wav".to_string()));
+
+    let mut iter_names: Vec<String> = pkg.iter_names().cloned().collect();
+    iter_names.sort();
+    assert_eq!(iter_names, names);
+
+    // zero-copy cow read should produce the same bytes
+    if let Ok(std::borrow::Cow::Borrowed(b)) = pkg.read_asset_bytes_cow("foo.sfx") {
+        assert_eq!(b, &a1[..]);
+    }
 }

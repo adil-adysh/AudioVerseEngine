@@ -206,8 +206,10 @@ fn ensure_resampler(
         };
         let chunk_size = frames.max(1024);
         let cutoff_scale: f64 = 0.95;
+        let max_ratio = if ratio < 1.0 { 1.0 } else { ratio };
         *resampler = Some(
-            SincFixedIn::<f32>::new(ratio, cutoff_scale, params, channels, chunk_size)
+            // rubato expects (f_cutoff, max_resample_ratio_relative, params, chunk_size, channels)
+            SincFixedIn::<f32>::new(cutoff_scale, max_ratio, params, chunk_size, channels)
                 .expect("failed to create rubato resampler"),
         );
         *resampler_ratio = Some(ratio);

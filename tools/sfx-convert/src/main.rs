@@ -1,6 +1,6 @@
 use std::env;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 const TARGET_SAMPLE_RATE: u32 = 48000;
@@ -41,14 +41,13 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn decode_to_interleaved_f32(path: &Path) -> anyhow::Result<(Vec<f32>, u32, usize)> {
-    use symphonia::core::audio::{AudioBufferRef, SampleBuffer};
     use symphonia::core::codecs::DecoderOptions;
     use symphonia::core::formats::FormatOptions;
     use symphonia::core::io::MediaSourceStream;
     use symphonia::core::meta::MetadataOptions;
     use symphonia::default::get_probe;
 
-    let file = File::open(path)?;
+    let file = std::fs::File::open(path)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let probed = get_probe().format(
         &Default::default(),
@@ -80,11 +79,13 @@ fn decode_to_interleaved_f32(path: &Path) -> anyhow::Result<(Vec<f32>, u32, usiz
         };
         match decoder.decode(&packet) {
             Ok(audio_buf) => {
-                // Create a f32 SampleBuffer and copy interleaved samples from the decoded buffer
+                // Convert decoded audio to interleaved f32 using SampleBuffer
+                use symphonia::core::audio::SampleBuffer;
                 let spec = *audio_buf.spec();
                 let mut sample_buf = SampleBuffer::<f32>::new(audio_buf.capacity() as u64, spec);
                 sample_buf.copy_interleaved_ref(audio_buf);
-                samples.extend_from_slice(sample_buf.samples());
+                let s = sample_buf.samples();
+                samples.extend_from_slice(s);
             }
             Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
             Err(_) => break,
@@ -126,7 +127,9 @@ fn resample_interleaved(
     }
 
     let cutoff_scale: f64 = 0.95;
-    let mut resampler = SincFixedIn::<f32>::new(ratio, cutoff_scale, params, channels, chunk_size)
+    let max_ratio = if ratio < 1.0 { 1.0 } else { ratio };
+    // rubato expects (f_cutoff, max_resample_ratio_relative, params, chunk_size, channels)
+    let mut resampler = SincFixedIn::<f32>::new(cutoff_scale, max_ratio, params, chunk_size, channels)
         .expect("failed to create resampler");
     let input_refs: Vec<&[f32]> = planar.iter().map(|v| v.as_slice()).collect();
     let outputs = resampler

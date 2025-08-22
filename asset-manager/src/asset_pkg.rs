@@ -123,6 +123,50 @@ impl AssetPkg {
         self.entries.get(name)
     }
 
+    /// Return a sorted list of asset names contained in the package.
+    pub fn list_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.entries.keys().cloned().collect();
+        names.sort();
+        names
+    }
+
+    /// Return a cloned vector of index entries (useful for iteration without borrowing the map).
+    pub fn entries_vec(&self) -> Vec<AssetIndexEntry> {
+        self.entries.values().cloned().collect()
+    }
+
+    /// Iterate over asset names without allocating a new Vec.
+    pub fn iter_names(&self) -> impl Iterator<Item = &String> {
+        self.entries.keys()
+    }
+
+    /// Iterate over asset index entries by reference.
+    pub fn iter_entries(&self) -> impl Iterator<Item = &AssetIndexEntry> {
+        self.entries.values()
+    }
+
+    /// Return either a borrowed slice into the mmap (zero-copy) or an owned Vec for file backend.
+    pub fn read_asset_bytes_cow(&self, name: &str) -> Result<std::borrow::Cow<'_, [u8]>, AssetError> {
+        let ent = self.entries.get(name).ok_or(AssetError::NotFound)?;
+        if ent.size > (1u64 << 31) {
+            return Err(AssetError::ResourceLimit("asset too large".into()));
+        }
+        match &self.backend {
+            MappedOrFile::Mmap(m) => {
+                let start = ent.offset as usize;
+                let end = (ent.offset + ent.size) as usize;
+                Ok(std::borrow::Cow::Borrowed(&m[start..end]))
+            },
+            MappedOrFile::File(ref f) => {
+                let mut f = f.try_clone()?;
+                let mut buf = vec![0u8; ent.size as usize];
+                f.seek(SeekFrom::Start(ent.offset))?;
+                f.read_exact(&mut buf)?;
+                Ok(std::borrow::Cow::Owned(buf))
+            }
+        }
+    }
+
     pub fn read_asset_bytes(&self, name: &str) -> Result<Vec<u8>, AssetError> {
         let ent = self.entries.get(name).ok_or(AssetError::NotFound)?;
         if ent.size > (1u64 << 31) {
@@ -145,5 +189,21 @@ impl AssetPkg {
     }
 
     pub fn file_len(&self) -> u64 { self.file_len }
+
+    /// Read an asset and parse it as an `SfxBlob` (for `.sfx` assets).
+    pub fn read_sfx_blob(&self, name: &str) -> Result<crate::sfx::SfxBlob, AssetError> {
+        let bytes = self.read_asset_bytes(name)?;
+        crate::sfx::SfxBlob::from_sfx_bytes(&bytes)
+    }
+
+    /// Read an asset and parse it as interleaved samples + metadata using the sfx parser.
+    /// This returns (samples, metadata) where samples are interleaved f32 PCM.
+    pub fn read_sfx_samples(&self, name: &str) -> Result<(Vec<f32>, crate::sfx_loader::SfxMetadata), AssetError> {
+        let bytes = self.read_asset_bytes(name)?;
+        match crate::sfx_loader::parse_pcm_sfx_data(&bytes) {
+            Ok((samples, meta)) => Ok((samples, meta)),
+            Err(e) => Err(AssetError::Decode(format!("sfx parse error: {:?}", e))),
+        }
+    }
 }
 

@@ -15,6 +15,23 @@ $root = Resolve-Path -Path (Join-Path $scriptDir "..")
 Push-Location $root
 try {
     cargo run -p asset-packer -- --pack-assets
+    # Validate the produced package using the pkg-validator tool.
+    # Build package path reliably on Windows
+    $pkgPath = Join-Path -Path $root -ChildPath "assets\dest\out.pkg"
+    if (Test-Path $pkgPath) {
+        Write-Host "Validating package: $pkgPath"
+        $validatorExit = & cargo run -p pkg-validator -- $pkgPath
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "pkg-validator failed. The created package is invalid."
+            throw "pkg-validator failed"
+        }
+        else {
+            Write-Host "pkg-validator: package OK"
+        }
+    }
+    else {
+        Write-Warning "Expected package not found at $pkgPath; skipping validation."
+    }
 }
 finally {
     Pop-Location
