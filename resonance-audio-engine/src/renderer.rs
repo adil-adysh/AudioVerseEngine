@@ -21,6 +21,31 @@ pub struct SfxBuffer {
     pub meta: SfxMetadata,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stream_scratch_grows_on_large_num_frames() {
+        // Start with a small frames_per_buffer so initial scratch is small
+        let sample_rate = 48000;
+        let num_channels = 2usize;
+        let small_frames = 32usize;
+        let mut r = Renderer::new(sample_rate, num_channels, small_frames);
+
+        // initial scratch length
+        let initial = r.stream_scratch.len();
+
+        // call process_output_interleaved with a much larger num_frames
+        let large_frames = small_frames * 16; // larger than initial
+        let mut out = vec![0.0f32; large_frames * num_channels];
+        let _ = r.process_output_interleaved(&mut out, large_frames);
+
+        assert!(r.stream_scratch.len() >= large_frames * num_channels, "stream_scratch should grow to accommodate large buffers");
+        assert!(r.stream_scratch.len() >= initial, "scratch len should be at least initial");
+    }
+}
+
 pub enum Command {
     PlaySfx {
         slot: usize,
@@ -118,11 +143,10 @@ impl Renderer {
     }
 
     fn drain_commands(&mut self) {
-        for _ in 0..256 {
-            match self.cmd_queue.pop() {
-                Some(cmd) => self.apply_command(cmd),
-                None => break,
-            }
+        // Drain until the queue is empty. Using a fixed cap can leave commands
+        // enqueued when many commands are pushed quickly (tests may do this).
+        while let Some(cmd) = self.cmd_queue.pop() {
+            self.apply_command(cmd);
         }
     }
 
@@ -202,7 +226,20 @@ impl Renderer {
     pub fn process_output_interleaved(&mut self, buffer: &mut [f32], num_frames: usize) -> bool {
         self.drain_commands();
 
-    for sample in buffer.iter_mut() { *sample = 0.0; }
+        // validate caller provided buffer size to prevent accidental OOB writes
+        let expected_len = num_frames.saturating_mul(self.num_channels);
+        if buffer.len() < expected_len {
+            // Caller provided too-small buffer. In debug builds we want to fail
+            // loudly so callers/tests catch the bug early; in release builds
+            // avoid panics and return false to indicate no output.
+            if cfg!(debug_assertions) {
+                panic!("process_output_interleaved: buffer.len() ({}) < expected {} (num_frames={} * channels={})", buffer.len(), expected_len, num_frames, self.num_channels);
+            } else {
+                return false;
+            }
+        }
+
+        for sample in buffer.iter_mut() { *sample = 0.0; }
 
         for v in &mut self.voices {
             if !v.active.load(Ordering::Acquire) { continue; }
@@ -231,13 +268,19 @@ impl Renderer {
         }
 
         // stream mixing: reuse preallocated scratch to avoid allocation
-        let scratch_len = num_frames * self.num_channels;
+    let scratch_len = num_frames * self.num_channels;
+        if self.stream_scratch.len() < scratch_len {
+            // grow scratch to accommodate larger backend buffers
+            self.stream_scratch.resize(scratch_len, 0.0f32);
+        }
         let scratch = &mut self.stream_scratch[..scratch_len];
         for s in &mut self.streams {
             if let Some(ref mut cons) = s.ring {
                 let popped = cons.pop_slice(scratch);
                 if popped > 0 {
-                    for i in 0..popped { buffer[i] += scratch[i]; }
+            // popped is number of samples written into scratch; clamp to buffer
+            let to_add = popped.min(buffer.len());
+            for i in 0..to_add { buffer[i] += scratch[i]; }
                 }
             }
         }

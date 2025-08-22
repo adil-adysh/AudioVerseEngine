@@ -84,13 +84,12 @@ fn play_sfx_from_pkg_or_tone() {
         sfx_buffers.push((converted, frames_for_buffer));
     }
 
-    // Create sources and set initial (silent) buffers
-    for (_buf, frames_n) in sfx_buffers.iter() {
-        let src_id = { let mut r = renderer.lock().unwrap(); r.create_stereo_source(backend_channels) };
-        // Pre-fill with silence sized buffer to ensure valid state
-        let silent = vec![0f32; frames_n * backend_channels];
-        { let mut r = renderer.lock().unwrap(); r.set_interleaved_buffer_f32(src_id, &silent, backend_channels, *frames_n); }
-        source_ids.push(src_id);
+    // Create sources as Renderer slots and keep slot ids; we'll use the command
+    // queue to create sources and play buffers from the game thread.
+    for (_buf, _frames_n) in sfx_buffers.iter() {
+        let slot = { let mut r = renderer.lock().unwrap(); r.alloc_slot().expect("no free slot") };
+        { let r = renderer.lock().unwrap(); let sender = r.command_sender(); sender.push(resonance_audio_engine::renderer::Command::CreateSource { slot, mode: resonance_cxx::RenderingMode::kStereoPanning }).ok(); }
+        source_ids.push(slot as i32);
     }
 
     // Render closure will call Renderer.process_output_interleaved to fill output.
@@ -111,19 +110,26 @@ fn play_sfx_from_pkg_or_tone() {
 
     // Staggered playback: set buffers for each source at offsets so they overlap.
     // Each step we set the next source's buffer and wait a short time.
-    for (i, (buf, frames_n)) in sfx_buffers.iter().enumerate() {
-    let src_id = source_ids[i];
-    { let mut r = renderer.lock().unwrap(); r.set_interleaved_buffer_f32(src_id, buf, backend_channels, *frames_n); }
+    for (i, (buf, _frames_n)) in sfx_buffers.iter().enumerate() {
+        let slot = source_ids[i] as usize;
+        { let r = renderer.lock().unwrap(); let sender = r.command_sender();
+            // PlaySfx will transfer the buffer and start the voice
+            let meta = asset_manager::sfx_loader::SfxMetadata { channels: backend_channels as u16, sample_rate: backend_sr as u32, loop_points: None };
+            let sfx_buffer = resonance_audio_engine::renderer::SfxBuffer { samples: std::sync::Arc::new(buf.clone()), meta };
+            sender.push(resonance_audio_engine::renderer::Command::PlaySfx { slot, buffer: sfx_buffer, gain: 1.0, pos: None }).ok(); }
         // wait to allow partial overlap (100..300ms)
         sleep(Duration::from_millis(150));
     }
 
     // Now play longer audio by repeatedly re-setting the first source's buffer for ~2 seconds
     let loop_src = source_ids[0];
-    let (loop_buf, loop_frames) = &sfx_buffers[0];
+    let (loop_buf, _loop_frames) = &sfx_buffers[0];
     let loops = 12; // depending on buffer length this yields a few seconds
     for _ in 0..loops {
-    { let mut r = renderer.lock().unwrap(); r.set_interleaved_buffer_f32(loop_src, loop_buf, backend_channels, *loop_frames); }
+    { let r = renderer.lock().unwrap(); let sender = r.command_sender();
+    let meta = asset_manager::sfx_loader::SfxMetadata { channels: backend_channels as u16, sample_rate: backend_sr as u32, loop_points: None };
+    let sfx_buffer = resonance_audio_engine::renderer::SfxBuffer { samples: std::sync::Arc::new(loop_buf.clone()), meta };
+    sender.push(resonance_audio_engine::renderer::Command::PlaySfx { slot: loop_src as usize, buffer: sfx_buffer, gain: 1.0, pos: None }).ok(); }
         sleep(Duration::from_millis(200));
     }
 
