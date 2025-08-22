@@ -96,7 +96,11 @@ fn resample_interleaved(
     }
 
     let cutoff_scale: f64 = 0.95;
-    let mut resampler = SincFixedIn::<f32>::new(ratio, cutoff_scale, params, channels, chunk_size)
+    // SincFixedIn in this rubato version expects the f_cutoff parameter first,
+    // then the max_resample_ratio_relative. Also ensure the max ratio is >= 1.0.
+    let max_ratio = if ratio < 1.0 { 1.0 } else { ratio };
+    // rubato's SincFixedIn in this version expects chunk_size before channels.
+    let mut resampler = SincFixedIn::<f32>::new(cutoff_scale, max_ratio, params, chunk_size, channels)
         .expect("failed to create resampler");
     let input_refs: Vec<&[f32]> = planar.iter().map(|v| v.as_slice()).collect();
     let outputs = resampler

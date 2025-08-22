@@ -108,7 +108,9 @@ pub(crate) fn resample_interleaved(samples: &[f32], from_rate: u32, to_rate: u32
     // SincFixedIn::new expected signature includes an extra f64 parameter (filter cutoff scaling)
     // and expects channels before chunk_size in this rubato version.
     let cutoff_scale: f64 = 0.95;
-    let mut resampler = SincFixedIn::<f32>::new(ratio, cutoff_scale, params, channels, chunk_size).expect("failed to create rubato resampler");
+    let max_ratio = if ratio < 1.0 { 1.0 } else { ratio };
+    // rubato's SincFixedIn in this version expects chunk_size before channels.
+    let mut resampler = SincFixedIn::<f32>::new(cutoff_scale, max_ratio, params, chunk_size, channels).expect("failed to create rubato resampler");
 
     // rubato expects slices: &[&[f32]] per chunk
     let input_refs: Vec<&[f32]> = planar.iter().map(|v| v.as_slice()).collect();
