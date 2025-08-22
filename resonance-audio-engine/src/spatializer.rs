@@ -51,8 +51,7 @@ impl<'a> Spatializer<'a> {
 
     /// Set room-effects gain for this source (maps to SetSourceRoomEffectsGain).
     pub fn set_room_effects_gain(&mut self, gain: f32) {
-        self.api
-            .set_source_room_effects_gain(self.source_id, gain);
+        self.api.set_source_room_effects_gain(self.source_id, gain);
     }
 
     /// Set per-source distance attenuation value (maps to SetSourceDistanceAttenuation).
