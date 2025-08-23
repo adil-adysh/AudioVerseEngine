@@ -1,0 +1,109 @@
+       Fresh unicode-ident v1.0.18
+       Fresh autocfg v1.5.0
+       Fresh version_check v0.9.5
+       Fresh shlex v1.3.0
+       Fresh cfg-if v1.0.3
+       Fresh once_cell v1.21.3
+       Fresh hashbrown v0.15.5
+       Fresh equivalent v1.0.2
+       Fresh strength_reduce v0.2.4
+       Fresh unicode-width v0.2.1
+       Fresh cxxbridge-flags v1.0.168
+       Fresh proc-macro2 v1.0.101
+       Fresh cc v1.2.33
+       Fresh indexmap v2.10.0
+       Fresh getrandom v0.2.16
+       Fresh virtue v0.0.18
+       Fresh quote v1.0.40
+       Fresh windows_x86_64_msvc v0.53.0
+       Fresh windows_x86_64_msvc v0.52.6
+       Fresh crossbeam-utils v0.8.21
+       Fresh typenum v1.18.0
+       Fresh scratch v1.0.9
+       Fresh winapi v0.3.9
+       Fresh rustversion v1.0.22
+       Fresh dasp_sample v0.11.0
+       Fresh bincode_derive v2.0.1
+       Fresh syn v2.0.106
+       Fresh windows-targets v0.52.6
+       Fresh num-traits v0.2.19
+       Fresh windows-targets v0.53.3
+       Fresh generic-array v0.14.7
+       Fresh ahash v0.7.8
+       Fresh crossbeam-channel v0.5.15
+       Fresh remove_dir_all v0.5.3
+       Fresh crossbeam-epoch v0.9.18
+       Fresh crossbeam-queue v0.3.12
+       Fresh rand v0.4.6
+       Fresh smallvec v1.15.1
+       Fresh arc-swap v1.7.1
+       Fresh cpufeatures v0.2.17
+       Fresh scopeguard v1.2.0
+       Fresh foldhash v0.1.5
+       Fresh unty v0.0.4
+       Fresh anyhow v1.0.99
+       Fresh windows-sys v0.60.2
+       Fresh num-integer v0.1.46
+       Fresh windows-result v0.1.2
+       Fresh num-complex v0.4.6
+       Fresh block-buffer v0.10.4
+       Fresh crypto-common v0.1.6
+       Fresh link-cplusplus v1.0.10
+       Fresh thiserror-impl v1.0.69
+       Fresh hashbrown v0.12.3
+       Fresh serde_derive v1.0.219
+       Fresh cxxbridge-macro v1.0.168
+       Fresh crossbeam-deque v0.8.6
+       Fresh tempdir v0.3.7
+       Fresh parking_lot_core v0.9.11
+       Fresh lock_api v0.4.13
+       Fresh bincode v2.0.1
+       Fresh tracing-attributes v0.1.30
+       Fresh tracing-core v0.1.34
+       Fresh mint v0.5.9
+       Fresh winapi-util v0.1.10
+       Fresh windows-core v0.54.0
+       Fresh transpose v0.2.3
+       Fresh primal-check v0.3.4
+       Fresh digest v0.10.7
+       Fresh serde v1.0.219
+       Fresh thiserror v1.0.69
+       Fresh lru v0.8.1
+       Fresh cxx v1.0.168
+       Fresh pin-project-lite v0.2.16
+       Fresh memmap2 v0.5.10
+       Fresh oddio v0.7.4
+       Fresh parking_lot v0.12.4
+       Fresh crossbeam v0.8.4
+       Fresh ringbuf v0.4.8
+       Fresh pin-utils v0.1.0
+       Fresh glam v0.30.5
+       Fresh termcolor v1.4.1
+       Fresh windows v0.54.0
+       Fresh rustfft v6.4.0
+       Fresh sha2 v0.10.9
+       Fresh tracing v0.1.41
+       Fresh codespan-reporting v0.12.0
+       Fresh cpal v0.15.3
+       Fresh realfft v3.5.0
+       Fresh cxx-build v1.0.168
+       Fresh rubato v0.12.0
+       Fresh asset_manager v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\asset-manager)
+       Fresh audio-system v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\audio-system)
+       Fresh resonance-cxx v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx)
+       Fresh resonance-audio-engine v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\resonance-audio-engine)
+warning: field `frames_per_buffer` is never read
+   --> resonance-audio-engine\src\renderer.rs:123:5
+    |
+120 | pub struct Renderer {
+    |            -------- field in this struct
+...
+123 |     frames_per_buffer: usize,
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `resonance-audio-engine` (lib) generated 1 warning
+   Compiling audio-backend v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\audio-backend)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name windows_play --edition=2024 audio-backend\examples\windows_play.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"mock-audio\"))" -C metadata=d57582f301fe6e7f --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\examples -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern arc_swap=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libarc_swap-51975ffc42aa02ed.rlib --extern audio_backend=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_backend-c656bd6cca68e1c9.rlib --extern audio_system=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_system-7f2a8d312e2ae506.rlib --extern cpal=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcpal-ac6020d0b1a6d379.rlib --extern crossbeam_channel=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_channel-a41c006993924718.rlib --extern resonance_audio_engine=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_audio_engine-498d90044ddf9984.rlib --extern resonance_cxx=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_cxx-90ea0b2751873396.rlib -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\cxx-44e496cbf83385ed\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\link-cplusplus-6bd7373649f9439a\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-d7660890d19c8879\out -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib -L native=C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx\..\resonance-audio\build\resonance_audio\Release`
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.92s

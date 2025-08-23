@@ -1,0 +1,133 @@
+       Fresh unicode-ident v1.0.18
+       Fresh autocfg v1.5.0
+       Fresh version_check v0.9.5
+       Fresh shlex v1.3.0
+       Fresh cfg-if v1.0.3
+       Fresh hashbrown v0.15.5
+       Fresh once_cell v1.21.3
+       Fresh equivalent v1.0.2
+       Fresh unicode-width v0.2.1
+       Fresh cxxbridge-flags v1.0.168
+       Fresh strength_reduce v0.2.4
+       Fresh proc-macro2 v1.0.101
+       Fresh cc v1.2.33
+       Fresh indexmap v2.10.0
+       Fresh getrandom v0.2.16
+       Fresh quote v1.0.40
+       Fresh windows_x86_64_msvc v0.52.6
+       Fresh windows_x86_64_msvc v0.53.0
+       Fresh crossbeam-utils v0.8.21
+       Fresh typenum v1.18.0
+       Fresh scratch v1.0.9
+       Fresh winapi v0.3.9
+       Fresh rustversion v1.0.22
+       Fresh dasp_sample v0.11.0
+       Fresh virtue v0.0.18
+       Fresh syn v2.0.106
+       Fresh windows-targets v0.53.3
+       Fresh windows-targets v0.52.6
+       Fresh num-traits v0.2.19
+       Fresh generic-array v0.14.7
+       Fresh ahash v0.7.8
+       Fresh crossbeam-channel v0.5.15
+       Fresh rand v0.4.6
+       Fresh crossbeam-epoch v0.9.18
+       Fresh crossbeam-queue v0.3.12
+       Fresh bincode_derive v2.0.1
+       Fresh remove_dir_all v0.5.3
+       Fresh foldhash v0.1.5
+       Fresh cpufeatures v0.2.17
+       Fresh arc-swap v1.7.1
+       Fresh smallvec v1.15.1
+       Fresh scopeguard v1.2.0
+       Fresh unty v0.0.4
+       Fresh anyhow v1.0.99
+       Fresh windows-sys v0.60.2
+       Fresh num-integer v0.1.46
+       Fresh windows-result v0.1.2
+       Fresh num-complex v0.4.6
+       Fresh crypto-common v0.1.6
+       Fresh block-buffer v0.10.4
+       Fresh link-cplusplus v1.0.10
+       Fresh serde_derive v1.0.219
+       Fresh thiserror-impl v1.0.69
+       Fresh hashbrown v0.12.3
+       Fresh cxxbridge-macro v1.0.168
+       Fresh lock_api v0.4.13
+       Fresh crossbeam-deque v0.8.6
+       Fresh tracing-attributes v0.1.30
+       Fresh parking_lot_core v0.9.11
+       Fresh bincode v2.0.1
+       Fresh tempdir v0.3.7
+       Fresh tracing-core v0.1.34
+       Fresh mint v0.5.9
+       Fresh winapi-util v0.1.10
+       Fresh windows-core v0.54.0
+       Fresh transpose v0.2.3
+       Fresh primal-check v0.3.4
+       Fresh digest v0.10.7
+   Compiling cxx v1.0.168
+   Compiling serde v1.0.219
+       Fresh lru v0.8.1
+   Compiling thiserror v1.0.69
+       Fresh memmap2 v0.5.10
+       Fresh pin-project-lite v0.2.16
+   Compiling crossbeam v0.8.4
+       Fresh oddio v0.7.4
+       Fresh parking_lot v0.12.4
+       Fresh ringbuf v0.4.8
+       Fresh glam v0.30.5
+       Fresh pin-utils v0.1.0
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name cxx --edition=2021 C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\cxx-1.0.168\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --cfg "feature=\"alloc\"" --cfg "feature=\"default\"" --cfg "feature=\"std\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"alloc\", \"c++14\", \"c++17\", \"c++20\", \"default\", \"std\"))" -C metadata=2791d527a0b6302c -C extra-filename=-d1f5aa2b2c554e33 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern cxxbridge_macro=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\cxxbridge_macro-1f2ce84a9dedb5b3.dll --extern foldhash=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libfoldhash-437f1e1aa305d4ca.rmeta --extern link_cplusplus=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liblink_cplusplus-2aa880a50053c8df.rmeta --cap-lints allow -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\cxx-44e496cbf83385ed\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\link-cplusplus-6bd7373649f9439a\out -l static=cxxbridge1 --cfg built_with_cargo --check-cfg cfg(built_with_cargo) --check-cfg cfg(compile_error_if_alloc) --check-cfg cfg(compile_error_if_std) --check-cfg cfg(cxx_experimental_no_alloc) --check-cfg cfg(no_error_in_core) --check-cfg cfg(no_seek_relative) --check-cfg cfg(skip_ui_tests)`
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name serde --edition=2018 C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.219\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --cfg "feature=\"default\"" --cfg "feature=\"derive\"" --cfg "feature=\"serde_derive\"" --cfg "feature=\"std\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"alloc\", \"default\", \"derive\", \"rc\", \"serde_derive\", \"std\", \"unstable\"))" -C metadata=0362c973523df69a -C extra-filename=-79c9c6aa9ca78766 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern serde_derive=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\serde_derive-cb9eae09de15dc77.dll --cap-lints allow --check-cfg cfg(no_core_cstr) --check-cfg cfg(no_core_error) --check-cfg cfg(no_core_net) --check-cfg cfg(no_core_num_saturating) --check-cfg cfg(no_core_try_from) --check-cfg cfg(no_diagnostic_namespace) --check-cfg cfg(no_float_copysign) --check-cfg cfg(no_num_nonzero_signed) --check-cfg cfg(no_relaxed_trait_bounds) --check-cfg cfg(no_serde_derive) --check-cfg cfg(no_std_atomic) --check-cfg cfg(no_std_atomic64) --check-cfg cfg(no_systemtime_checked_add) --check-cfg cfg(no_target_has_atomic)`
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name thiserror --edition=2021 C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-1.0.69\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=a36270811e49c99d -C extra-filename=-6e08c81f3fbe44ed --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern thiserror_impl=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\thiserror_impl-336462e8279f4c6c.dll --cap-lints allow --check-cfg cfg(error_generic_member_access) --check-cfg cfg(thiserror_nightly_testing)`
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name crossbeam --edition=2021 C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\crossbeam-0.8.4\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --cfg "feature=\"alloc\"" --cfg "feature=\"crossbeam-channel\"" --cfg "feature=\"crossbeam-deque\"" --cfg "feature=\"crossbeam-epoch\"" --cfg "feature=\"crossbeam-queue\"" --cfg "feature=\"default\"" --cfg "feature=\"std\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"alloc\", \"crossbeam-channel\", \"crossbeam-deque\", \"crossbeam-epoch\", \"crossbeam-queue\", \"default\", \"nightly\", \"std\"))" -C metadata=c4562fe219d1139c -C extra-filename=-693593e069728949 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern crossbeam_channel=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_channel-a41c006993924718.rmeta --extern crossbeam_deque=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_deque-3a1ea9f2fec3a66e.rmeta --extern crossbeam_epoch=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_epoch-dd24a4359307137f.rmeta --extern crossbeam_queue=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_queue-17e7e3aa2d4b11e7.rmeta --extern crossbeam_utils=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_utils-1d2de5070e18a0d1.rmeta --cap-lints allow`
+       Fresh termcolor v1.4.1
+       Fresh rustfft v6.4.0
+       Fresh windows v0.54.0
+       Fresh sha2 v0.10.9
+   Compiling tracing v0.1.41
+       Fresh codespan-reporting v0.12.0
+       Fresh cpal v0.15.3
+       Fresh realfft v3.5.0
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name tracing --edition=2018 C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tracing-0.1.41\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg cfg(flaky_tests) --check-cfg cfg(tracing_unstable) --cfg "feature=\"attributes\"" --cfg "feature=\"default\"" --cfg "feature=\"std\"" --cfg "feature=\"tracing-attributes\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"async-await\", \"attributes\", \"default\", \"log\", \"log-always\", \"max_level_debug\", \"max_level_error\", \"max_level_info\", \"max_level_off\", \"max_level_trace\", \"max_level_warn\", \"release_max_level_debug\", \"release_max_level_error\", \"release_max_level_info\", \"release_max_level_off\", \"release_max_level_trace\", \"release_max_level_warn\", \"std\", \"tracing-attributes\", \"valuable\"))" -C metadata=6863ee78b2f738bc -C extra-filename=-80768fe642d2a39b --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern pin_project_lite=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libpin_project_lite-2fa5e6199ff16a29.rmeta --extern tracing_attributes=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\tracing_attributes-d7fd969d7b6d8910.dll --extern tracing_core=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtracing_core-6ca28ebc81d82365.rmeta --cap-lints allow`
+       Fresh cxx-build v1.0.168
+       Fresh rubato v0.12.0
+   Compiling resonance-cxx v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name build_script_build --edition=2021 resonance-cxx\build.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no --cfg "feature=\"default\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"default\"))" -C metadata=7a551f57f76ca99a -C extra-filename=-2bdddf5c8ee3260d --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-2bdddf5c8ee3260d -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern cxx_build=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcxx_build-efe8d96cab0d5eab.rlib -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.53.0\lib`
+   Compiling audio-system v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\audio-system)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name audio_system --edition=2021 audio-system\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=31057279891ac581 -C extra-filename=-7f2a8d312e2ae506 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern anyhow=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libanyhow-7768eebda98c244c.rmeta --extern audio_backend=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_backend-c656bd6cca68e1c9.rmeta --extern crossbeam=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam-693593e069728949.rmeta --extern oddio=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liboddio-c672a44d0685c5f6.rmeta --extern parking_lot=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libparking_lot-cd2a15304a303796.rmeta --extern tracing=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtracing-80768fe642d2a39b.rmeta -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib`
+     Running `C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-2bdddf5c8ee3260d\build-script-build`
+   Compiling asset_manager v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\asset-manager)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name asset_manager --edition=2021 asset-manager\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --cfg "feature=\"default\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"default\", \"ringbuf\", \"streaming\", \"symphonia\"))" -C metadata=6bb7e0669817f560 -C extra-filename=-4899b9ecb648d8ce --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern bincode=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libbincode-d4944ed5893d864e.rmeta --extern lru=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liblru-8605f0ce7a7f9062.rmeta --extern memmap2=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libmemmap2-cf2b2dbec2f8959d.rmeta --extern rubato=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\librubato-6ea29c06fbcd4040.rmeta --extern serde=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libserde-79c9c6aa9ca78766.rmeta --extern sha2=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libsha2-eca998b5d2e23702.rmeta --extern tempdir=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtempdir-17c88082ee301594.rmeta --extern thiserror=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libthiserror-6e08c81f3fbe44ed.rmeta`
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name resonance_cxx --edition=2021 resonance-cxx\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --cfg "feature=\"default\"" --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"default\"))" -C metadata=db166d114dc04f08 -C extra-filename=-90ea0b2751873396 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern cxx=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcxx-d1f5aa2b2c554e33.rmeta -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-d7660890d19c8879\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\cxx-44e496cbf83385ed\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\link-cplusplus-6bd7373649f9439a\out -L native=C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx\..\resonance-audio\build\resonance_audio\Release -l static=ResonanceAudioStatic -l static=resonance_cxx_bridge`
+   Compiling resonance-audio-engine v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\resonance-audio-engine)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name resonance_audio_engine --edition=2021 resonance-audio-engine\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=0b91ca837df0ef18 -C extra-filename=-498d90044ddf9984 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern anyhow=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libanyhow-7768eebda98c244c.rmeta --extern asset_manager=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libasset_manager-4899b9ecb648d8ce.rmeta --extern audio_backend=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_backend-c656bd6cca68e1c9.rmeta --extern crossbeam_queue=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_queue-17e7e3aa2d4b11e7.rmeta --extern cxx=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcxx-d1f5aa2b2c554e33.rmeta --extern glam=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libglam-b9a0b235ebbc582b.rmeta --extern pin_utils=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libpin_utils-8af04ec5b63c27a1.rmeta --extern resonance_cxx=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_cxx-90ea0b2751873396.rmeta --extern ringbuf=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libringbuf-25f75d5d757d5a32.rmeta -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\cxx-44e496cbf83385ed\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\link-cplusplus-6bd7373649f9439a\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-d7660890d19c8879\out -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib -L native=C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx\..\resonance-audio\build\resonance_audio\Release`
+warning: field `frames_per_buffer` is never read
+   --> resonance-audio-engine\src\renderer.rs:123:5
+    |
+120 | pub struct Renderer {
+    |            -------- field in this struct
+...
+123 |     frames_per_buffer: usize,
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `resonance-audio-engine` (lib) generated 1 warning
+   Compiling audio-backend v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\audio-backend)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name windows_play --edition=2024 audio-backend\examples\windows_play.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"mock-audio\"))" -C metadata=d57582f301fe6e7f --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\examples -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern arc_swap=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libarc_swap-51975ffc42aa02ed.rlib --extern audio_backend=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_backend-c656bd6cca68e1c9.rlib --extern audio_system=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_system-7f2a8d312e2ae506.rlib --extern cpal=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcpal-ac6020d0b1a6d379.rlib --extern crossbeam_channel=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_channel-a41c006993924718.rlib --extern resonance_audio_engine=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_audio_engine-498d90044ddf9984.rlib --extern resonance_cxx=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_cxx-90ea0b2751873396.rlib -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\cxx-44e496cbf83385ed\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\link-cplusplus-6bd7373649f9439a\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-d7660890d19c8879\out -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib -L native=C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx\..\resonance-audio\build\resonance_audio\Release`
+error[E0277]: expected a `Fn(&mut [f32], u32, usize)` closure, found `Arc<dyn for<'a> Fn(&'a mut [f32], u32, usize) + Send + Sync>`
+  --> audio-backend\examples\windows_play.rs:13:43
+   |
+13 |     let render: audio_backend::RenderFn = std::sync::Arc::new(render_generic);
+   |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected an `Fn(&mut [f32], u32, usize)` closure, found `Arc<dyn for<'a> Fn(&'a mut [f32], u32, usize) + Send + Sync>`
+   |
+   = help: the trait `for<'a> Fn(&'a mut [f32], u32, usize)` is not implemented for `Arc<dyn for<'a> Fn(&'a mut [f32], u32, usize) + Send + Sync>`
+   = note: required for the cast from `Arc<Arc<dyn for<'a> Fn(&'a mut [f32], u32, usize) + Send + Sync>>` to `Arc<(dyn for<'a> Fn(&'a mut [f32], u32, usize) + Send + Sync + 'static)>`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `audio-backend` (example "windows_play") due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name windows_play --edition=2024 audio-backend\examples\windows_play.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values(\"mock-audio\"))" -C metadata=d57582f301fe6e7f --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\examples -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern arc_swap=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libarc_swap-51975ffc42aa02ed.rlib --extern audio_backend=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_backend-c656bd6cca68e1c9.rlib --extern audio_system=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libaudio_system-7f2a8d312e2ae506.rlib --extern cpal=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcpal-ac6020d0b1a6d379.rlib --extern crossbeam_channel=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam_channel-a41c006993924718.rlib --extern resonance_audio_engine=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_audio_engine-498d90044ddf9984.rlib --extern resonance_cxx=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libresonance_cxx-90ea0b2751873396.rlib -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\cxx-44e496cbf83385ed\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\link-cplusplus-6bd7373649f9439a\out -L native=C:\Users\adilh\repos\AudioVerseEngine\target\debug\build\resonance-cxx-d7660890d19c8879\out -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib -L native=C:\Users\adilh\repos\AudioVerseEngine\resonance-cxx\..\resonance-audio\build\resonance_audio\Release` (exit code: 1)

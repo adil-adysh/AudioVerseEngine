@@ -1,0 +1,46 @@
+       Fresh unicode-ident v1.0.18
+       Fresh autocfg v1.5.0
+       Fresh smallvec v1.15.1
+       Fresh scopeguard v1.2.0
+       Fresh cfg-if v1.0.3
+       Fresh once_cell v1.21.3
+       Fresh mint v0.5.9
+       Fresh pin-project-lite v0.2.16
+       Fresh crossbeam-utils v0.8.21
+       Fresh tracing-core v0.1.34
+       Fresh oddio v0.7.4
+       Fresh proc-macro2 v1.0.101
+       Fresh windows_x86_64_msvc v0.52.6
+       Fresh crossbeam-epoch v0.9.18
+       Fresh crossbeam-queue v0.3.12
+       Fresh crossbeam-channel v0.5.15
+       Fresh anyhow v1.0.99
+       Fresh quote v1.0.40
+       Fresh windows-targets v0.52.6
+       Fresh crossbeam-deque v0.8.6
+       Fresh lock_api v0.4.13
+       Fresh syn v2.0.106
+       Fresh parking_lot_core v0.9.11
+       Fresh crossbeam v0.8.4
+       Fresh tracing-attributes v0.1.30
+       Fresh parking_lot v0.12.4
+       Fresh tracing v0.1.41
+   Compiling audio-system v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\audio-system)
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name audio_system --edition=2021 audio-system\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=5f430d2ef94f7a4e -C extra-filename=-e4a03f771dd44061 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern anyhow=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libanyhow-7768eebda98c244c.rmeta --extern crossbeam=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam-1b9dc084db13a759.rmeta --extern oddio=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liboddio-c672a44d0685c5f6.rmeta --extern parking_lot=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libparking_lot-cd2a15304a303796.rmeta --extern tracing=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtracing-27bb0d82ffd73b02.rmeta -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib`
+     Running `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name audio_system --edition=2021 audio-system\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=2a7e8b3a60da5965 -C extra-filename=-7ff06d3319fe9c41 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern anyhow=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libanyhow-7768eebda98c244c.rlib --extern crossbeam=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam-1b9dc084db13a759.rlib --extern oddio=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liboddio-c672a44d0685c5f6.rlib --extern parking_lot=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libparking_lot-cd2a15304a303796.rlib --extern tracing=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtracing-27bb0d82ffd73b02.rlib -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib`
+error[E0432]: unresolved import `oddio::buffer`
+ --> audio-system\src\lib.rs:7:12
+  |
+7 | use oddio::buffer::Frames;
+  |            ^^^^^^ could not find `buffer` in `oddio`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `audio-system` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name audio_system --edition=2021 audio-system\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=5f430d2ef94f7a4e -C extra-filename=-e4a03f771dd44061 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern anyhow=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libanyhow-7768eebda98c244c.rmeta --extern crossbeam=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam-1b9dc084db13a759.rmeta --extern oddio=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liboddio-c672a44d0685c5f6.rmeta --extern parking_lot=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libparking_lot-cd2a15304a303796.rmeta --extern tracing=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtracing-27bb0d82ffd73b02.rmeta -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib` (exit code: 1)
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `audio-system` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `C:\Users\adilh\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\rustc.exe --crate-name audio_system --edition=2021 audio-system\src\lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg cfg(docsrs,test) --check-cfg "cfg(feature, values())" -C metadata=2a7e8b3a60da5965 -C extra-filename=-7ff06d3319fe9c41 --out-dir C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps -C incremental=C:\Users\adilh\repos\AudioVerseEngine\target\debug\incremental -L dependency=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps --extern anyhow=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libanyhow-7768eebda98c244c.rlib --extern crossbeam=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libcrossbeam-1b9dc084db13a759.rlib --extern oddio=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\liboddio-c672a44d0685c5f6.rlib --extern parking_lot=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libparking_lot-cd2a15304a303796.rlib --extern tracing=C:\Users\adilh\repos\AudioVerseEngine\target\debug\deps\libtracing-27bb0d82ffd73b02.rlib -L native=C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows_x86_64_msvc-0.52.6\lib` (exit code: 1)

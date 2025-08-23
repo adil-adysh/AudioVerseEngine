@@ -1,0 +1,16 @@
+[package]
+name = "audio-system"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+oddio = "0.7"
+anyhow = "1.0"
+parking_lot = "0.12"
+tracing = "0.1"
+crossbeam = "0.8"
+arc-swap = "1.7"
+
+[lib]
+name = "audio_system"
+path = "src/lib.rs"
