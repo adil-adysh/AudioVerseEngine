@@ -62,26 +62,26 @@ pub mod ffi {
         ) -> bool;
 
         // Planar output (each channel is a separate buffer pointer)
-    /// # Safety
-    /// - `buffers` must point to an array of `num_channels` valid, writable pointers
-    ///   to `f32` buffers, each with at least `num_frames` elements.
-    /// - The pointed-to memory must remain valid for the duration of the call.
-    /// - Caller guarantees proper alignment and that no aliasing UB occurs.
-    #[rust_name = "fill_planar_output_buffer_f32"]
-    unsafe fn FillPlanarOutputBufferF32(
+        /// # Safety
+        /// - `buffers` must point to an array of `num_channels` valid, writable pointers
+        ///   to `f32` buffers, each with at least `num_frames` elements.
+        /// - The pointed-to memory must remain valid for the duration of the call.
+        /// - Caller guarantees proper alignment and that no aliasing UB occurs.
+        #[rust_name = "fill_planar_output_buffer_f32"]
+        unsafe fn FillPlanarOutputBufferF32(
             self: Pin<&mut ResonanceAudioApi>,
             num_channels: usize,
             num_frames: usize,
             buffers: *const *mut f32,
         ) -> bool;
 
-    /// # Safety
-    /// - `buffers` must point to an array of `num_channels` valid, writable pointers
-    ///   to `i16` buffers, each with at least `num_frames` elements.
-    /// - The pointed-to memory must remain valid for the duration of the call.
-    /// - Caller guarantees proper alignment and that no aliasing UB occurs.
-    #[rust_name = "fill_planar_output_buffer_i16"]
-    unsafe fn FillPlanarOutputBufferI16(
+        /// # Safety
+        /// - `buffers` must point to an array of `num_channels` valid, writable pointers
+        ///   to `i16` buffers, each with at least `num_frames` elements.
+        /// - The pointed-to memory must remain valid for the duration of the call.
+        /// - Caller guarantees proper alignment and that no aliasing UB occurs.
+        #[rust_name = "fill_planar_output_buffer_i16"]
+        unsafe fn FillPlanarOutputBufferI16(
             self: Pin<&mut ResonanceAudioApi>,
             num_channels: usize,
             num_frames: usize,
@@ -150,13 +150,13 @@ pub mod ffi {
         // Planar buffer entrypoints accepting array-of-pointers from the C++ side.
         // We expose pointer-based planar setters so high-performance callers can
         // build per-channel pointers in C++ and call directly.
-    /// # Safety
-    /// - `audio_ptrs` must point to an array of `num_channels` valid pointers to
-    ///   `f32` channel data, each with at least `num_frames` elements.
-    /// - The pointed-to memory must remain valid for the duration of the call.
-    /// - Caller guarantees proper alignment and that no aliasing UB occurs.
-    #[rust_name = "set_planar_buffer_f32_ptrs"]
-    unsafe fn SetPlanarBufferF32(
+        /// # Safety
+        /// - `audio_ptrs` must point to an array of `num_channels` valid pointers to
+        ///   `f32` channel data, each with at least `num_frames` elements.
+        /// - The pointed-to memory must remain valid for the duration of the call.
+        /// - Caller guarantees proper alignment and that no aliasing UB occurs.
+        #[rust_name = "set_planar_buffer_f32_ptrs"]
+        unsafe fn SetPlanarBufferF32(
             self: Pin<&mut ResonanceAudioApi>,
             source_id: i32,
             audio_ptrs: *const *const f32,
@@ -164,13 +164,13 @@ pub mod ffi {
             num_frames: usize,
         );
 
-    /// # Safety
-    /// - `audio_ptrs` must point to an array of `num_channels` valid pointers to
-    ///   `i16` channel data, each with at least `num_frames` elements.
-    /// - The pointed-to memory must remain valid for the duration of the call.
-    /// - Caller guarantees proper alignment and that no aliasing UB occurs.
-    #[rust_name = "set_planar_buffer_i16_ptrs"]
-    unsafe fn SetPlanarBufferI16(
+        /// # Safety
+        /// - `audio_ptrs` must point to an array of `num_channels` valid pointers to
+        ///   `i16` channel data, each with at least `num_frames` elements.
+        /// - The pointed-to memory must remain valid for the duration of the call.
+        /// - Caller guarantees proper alignment and that no aliasing UB occurs.
+        #[rust_name = "set_planar_buffer_i16_ptrs"]
+        unsafe fn SetPlanarBufferI16(
             self: Pin<&mut ResonanceAudioApi>,
             source_id: i32,
             audio_ptrs: *const *const i16,

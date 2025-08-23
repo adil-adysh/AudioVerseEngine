@@ -29,10 +29,49 @@ impl Plugin for EngineCorePlugin {
         }
 
         // Update schedule: staged smaller chains
-        app.add_systems(Update, (crate::systems::set_update_timestep_system, crate::systems::navigation_system, crate::transform::physics_transform_system).chain());
-        app.add_systems(Update, (crate::systems::navigation_step_system, crate::physics::physics_spawn_system, crate::physics::physics_step_system).chain());
-        app.add_systems(Update, (crate::transform::render_transform_system, crate::systems::audio_listener_system, crate::systems::audio_system).chain());
-        app.add_systems(Update, (crate::transform::despawn_cleanup_system, crate::systems::space_graph_index_system).chain());
-        app.add_systems(Update, (crate::systems::navmesh_boundary_cues_system, crate::systems::navmesh_wayfinding_cues_system, crate::systems::space_membership_system).chain());
+        app.add_systems(
+            Update,
+            (
+                crate::systems::set_update_timestep_system,
+                crate::systems::navigation_system,
+                crate::transform::physics_transform_system,
+            )
+                .chain(),
+        );
+        app.add_systems(
+            Update,
+            (
+                crate::systems::navigation_step_system,
+                crate::physics::physics_spawn_system,
+                crate::physics::physics_step_system,
+            )
+                .chain(),
+        );
+        app.add_systems(
+            Update,
+            (
+                crate::transform::render_transform_system,
+                crate::systems::audio_listener_system,
+                crate::systems::audio_system,
+            )
+                .chain(),
+        );
+        app.add_systems(
+            Update,
+            (
+                crate::transform::despawn_cleanup_system,
+                crate::systems::space_graph_index_system,
+            )
+                .chain(),
+        );
+        app.add_systems(
+            Update,
+            (
+                crate::systems::navmesh_boundary_cues_system,
+                crate::systems::navmesh_wayfinding_cues_system,
+                crate::systems::space_membership_system,
+            )
+                .chain(),
+        );
     }
 }
