@@ -6,9 +6,9 @@ use crossbeam_queue::SegQueue;
 use parking_lot::RwLock;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 pub type SubscriptionId = u64;
 
@@ -68,13 +68,22 @@ impl EventBusImpl {
     pub fn publish_with_priority<T: EventPayload>(&self, payload: T, priority: i32) {
         // Blocking publish: always enqueues and updates len.
         let seq = self.next_seq.fetch_add(1, Ordering::Relaxed);
-        let ev = QueuedEvent { type_id: TypeId::of::<T>(), payload: Box::new(payload), priority, seq };
+        let ev = QueuedEvent {
+            type_id: TypeId::of::<T>(),
+            payload: Box::new(payload),
+            priority,
+            seq,
+        };
         self.queue.push(ev);
         self.len.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Try to publish without allocation in RT path. Returns Err(payload) if the queue is full.
-    pub fn try_publish_with_priority<T: EventPayload>(&self, payload: T, priority: i32) -> Result<(), T> {
+    pub fn try_publish_with_priority<T: EventPayload>(
+        &self,
+        payload: T,
+        priority: i32,
+    ) -> Result<(), T> {
         // If bounded and full, fail fast
         if let Some(cap) = self.capacity {
             let cur = self.len.load(Ordering::Relaxed);
@@ -86,7 +95,12 @@ impl EventBusImpl {
         self.len.fetch_add(1, Ordering::Relaxed);
         // safe to enqueue now
         let seq = self.next_seq.fetch_add(1, Ordering::Relaxed);
-        let ev = QueuedEvent { type_id: TypeId::of::<T>(), payload: Box::new(payload), priority, seq };
+        let ev = QueuedEvent {
+            type_id: TypeId::of::<T>(),
+            payload: Box::new(payload),
+            priority,
+            seq,
+        };
         self.queue.push(ev);
         Ok(())
     }
@@ -149,7 +163,9 @@ impl Default for EventBusImpl {
 
 // Shared event types can live in this crate so multiple systems can publish/subscribe
 #[derive(Clone, Debug)]
-pub struct PlaySoundEvent { pub entity: u32 }
+pub struct PlaySoundEvent {
+    pub entity: u32,
+}
 
 #[cfg(test)]
 mod tests {

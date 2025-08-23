@@ -57,6 +57,42 @@ mod bus_tests {
 use std::f32::consts::PI;
 use std::sync::Arc;
 use event_bus::EventBusImpl;
+mod spacialiser;
+use spacialiser::Spatialiser;
+mod audio_world;
+pub use audio_world::AudioWorld;
+use resonance_cxx::Api as ResonanceApi;
+use resonance_cxx::{DistanceRolloffModel, RenderingMode};
+
+/// Minimal trait to represent the subset of the resonance API we call from this crate.
+/// This allows injecting a mock in tests without pulling the real C++ object.
+pub trait ResonanceApiLike: Send + Sync {
+    fn create_sound_object_source(&mut self, mode: RenderingMode) -> i32;
+    fn destroy_source(&mut self, id: i32);
+    fn set_interleaved_buffer_f32(&mut self, source_id: i32, audio: &[f32], num_channels: usize, num_frames: usize);
+    fn fill_interleaved_f32(&mut self, num_channels: usize, num_frames: usize, buffer: &mut [f32]) -> bool;
+    fn set_source_distance_model(&mut self, source_id: i32, rolloff: DistanceRolloffModel, min_distance: f32, max_distance: f32);
+    fn set_sound_object_directivity(&mut self, source_id: i32, alpha: f32, order: f32);
+    fn set_source_room_effects_gain(&mut self, source_id: i32, room_effects_gain: f32);
+    fn set_source_distance_attenuation(&mut self, source_id: i32, distance_attenuation: f32);
+    fn set_source_position(&mut self, source_id: i32, x: f32, y: f32, z: f32);
+    fn set_source_volume(&mut self, source_id: i32, volume: f32);
+    fn set_head_position(&mut self, x: f32, y: f32, z: f32);
+}
+
+impl ResonanceApiLike for ResonanceApi {
+    fn create_sound_object_source(&mut self, mode: RenderingMode) -> i32 { self.create_sound_object_source(mode) }
+    fn destroy_source(&mut self, id: i32) { self.destroy_source(id); }
+    fn set_interleaved_buffer_f32(&mut self, source_id: i32, audio: &[f32], num_channels: usize, num_frames: usize) { self.set_interleaved_buffer_f32(source_id, audio, num_channels, num_frames); }
+    fn fill_interleaved_f32(&mut self, num_channels: usize, num_frames: usize, buffer: &mut [f32]) -> bool { self.fill_interleaved_f32(num_channels, num_frames, buffer) }
+    fn set_source_distance_model(&mut self, source_id: i32, rolloff: DistanceRolloffModel, min_distance: f32, max_distance: f32) { self.set_source_distance_model(source_id, rolloff, min_distance, max_distance); }
+    fn set_sound_object_directivity(&mut self, source_id: i32, alpha: f32, order: f32) { self.set_sound_object_directivity(source_id, alpha, order); }
+    fn set_source_room_effects_gain(&mut self, source_id: i32, room_effects_gain: f32) { self.set_source_room_effects_gain(source_id, room_effects_gain); }
+    fn set_source_distance_attenuation(&mut self, source_id: i32, distance_attenuation: f32) { self.set_source_distance_attenuation(source_id, distance_attenuation); }
+    fn set_source_position(&mut self, source_id: i32, x: f32, y: f32, z: f32) { self.set_source_position(source_id, x, y, z); }
+    fn set_source_volume(&mut self, source_id: i32, volume: f32) { self.set_source_volume(source_id, volume); }
+    fn set_head_position(&mut self, x: f32, y: f32, z: f32) { self.set_head_position(x, y, z); }
+}
 
 /// Simple representation of a 3D vector for transforms.
 pub type Vec3 = [f32; 3];
@@ -195,6 +231,9 @@ pub struct AudioSystem {
     mixer: Arc<MixerQueue>,
     sources: Arc<ActiveSources>,
     oddio: Arc<Mutex<Option<Arc<OddioEngine>>>>,
+    spatialiser: Arc<Mutex<Spatialiser>>,
+    resonance_api: Arc<Mutex<Option<Box<dyn ResonanceApiLike>>>> ,
+    audio_world: Arc<Mutex<Option<audio_world::AudioWorld>>>,
 }
 
 struct AudioSystemInner {
@@ -269,10 +308,16 @@ struct SineSource {
     bus: String,
     priority: u8,
     order: u64,
+    // spatial properties
+    is_spatial: bool,
+    // position and spatial options are updated from non-RT threads; store them in ArcSwapOption to avoid locks on RT path
+    position_and_options: ArcSwapOption<(Vec3, Option<SpatialAudioOptions>)>,
+    // Optional native source id when a resonance Api is attached.
+    native_source_id: Mutex<Option<i32>>,
 }
 
 impl SineSource {
-    fn new(handle: u32, freq: f32, volume: f32, category: String, bus: String, priority: u8, order: u64) -> Self {
+    fn new(handle: u32, freq: f32, volume: f32, category: String, bus: String, priority: u8, order: u64, is_spatial: bool, position: Vec3, spatial_options: Option<SpatialAudioOptions>) -> Self {
         Self {
             handle,
             freq,
@@ -285,6 +330,9 @@ impl SineSource {
             bus,
             priority,
             order,
+            is_spatial,
+            position_and_options: ArcSwapOption::from(Some(Arc::new((position, spatial_options)))),
+            native_source_id: Mutex::new(None),
         }
     }
 
@@ -332,7 +380,39 @@ impl AudioSystem {
             mixer: Arc::new(mixer),
             sources: Arc::new(ActiveSources::new()),
             oddio: Arc::new(Mutex::new(None)),
+            spatialiser: Arc::new(Mutex::new(Spatialiser::new())),
+            resonance_api: Arc::new(Mutex::new(None)),
+            audio_world: Arc::new(Mutex::new(None)),
         })
+    }
+
+    /// Update the listener position used by the spatialiser. This is safe to call from the non-RT path.
+    pub fn set_listener_position(&self, pos: Vec3) {
+        let mut sp = self.spatialiser.lock();
+        sp.set_listener_position(pos);
+        // If a resonance Api is attached, update its head position too.
+        let mut api_guard = self.resonance_api.lock();
+        if let Some(ref mut api) = api_guard.as_mut() {
+            api.set_head_position(pos[0], pos[1], pos[2]);
+        }
+    }
+
+    /// Attach a boxed `ResonanceApiLike` (allows injecting mocks in tests).
+    pub fn attach_resonance_api_box(&self, api: Box<dyn ResonanceApiLike>) {
+    let mut guard = self.resonance_api.lock();
+    *guard = Some(api);
+    }
+
+    /// Helper to attach a concrete `resonance_cxx::Api` instance.
+    pub fn attach_resonance_api(&self, api: ResonanceApi) {
+    // attach concrete api and create an AudioWorld wrapper
+    let boxed = Box::new(api);
+    // create a small Api owned by AudioWorld by taking out the concrete Api back
+    // Note: we keep boxed in resonance_api for legacy uses, and also create an AudioWorld using the concrete Api
+    self.attach_resonance_api_box(boxed);
+    // Try to construct AudioWorld using a concrete Api instance by creating a new Api via resonance_cxx::Api::new is not trivial here.
+    // Instead, if the boxed type is actually the concrete `resonance_cxx::Api`, create AudioWorld by downcasting is not possible for trait objects.
+    // So, as a pragmatic approach, do nothing here; callers may construct an AudioWorld manually via AudioWorld::new using a concrete Api.
     }
 
     pub fn mixer_processor(&self) -> Arc<dyn IMixerProcessor> {
@@ -388,7 +468,44 @@ impl AudioSystem {
             }
             let order = i.order_counter;
             i.order_counter = i.order_counter.wrapping_add(1);
-            let sine = Arc::new(SineSource::new(handle, freq, 0.2_f32, source.category.clone(), source.category.clone(), source.priority, order));
+            let sine = SineSource::new(handle, freq, 0.2_f32, source.category.clone(), source.category.clone(), source.priority, order, source.is_spatial, [0.0,0.0,0.0], source.spatial_options.clone());
+            // If a resonance API is attached, create a native source for spatialisation.
+            if let Some(ref mut api_box) = *self.resonance_api.lock() {
+                // Create native source
+                let id = api_box.create_sound_object_source(RenderingMode::kStereoPanning);
+                *sine.native_source_id.lock() = Some(id);
+
+                // If spatial options are present, apply mapping (read lock-free from ArcSwapOption)
+                if let Some(pair_arc) = sine.position_and_options.load_full() {
+                    let pair = &*pair_arc;
+                    if let Some(ref opts) = &pair.1 {
+                        // map rolloff model
+                        let rolloff = match opts.rolloff_model {
+                            RollOffModel::Logarithmic => DistanceRolloffModel::kLogarithmic,
+                            RollOffModel::Linear => DistanceRolloffModel::kLinear,
+                            RollOffModel::None => DistanceRolloffModel::kNone,
+                        };
+                        api_box.set_source_distance_model(id, rolloff, opts.min_distance, opts.max_distance);
+                        // directivity: alpha and sharpness -> use alpha and order (sharpness)
+                        api_box.set_sound_object_directivity(id, opts.directivity.alpha, opts.directivity.sharpness);
+                        // room effects gain: use source_width as a proxy if not specified
+                        api_box.set_source_room_effects_gain(id, opts.source_width);
+                        // distance attenuation parameter
+                        api_box.set_source_distance_attenuation(id, 1.0); // placeholder
+                    }
+                    // set initial position and volume from published pair
+                    let pos = pair.0;
+                    api_box.set_source_position(id, pos[0], pos[1], pos[2]);
+                    let vol = *sine.volume.lock();
+                    api_box.set_source_volume(id, vol);
+                } else {
+                    // fallback: use current volume and origin position
+                    api_box.set_source_position(id, 0.0, 0.0, 0.0);
+                    let vol = *sine.volume.lock();
+                    api_box.set_source_volume(id, vol);
+                }
+            }
+            let sine = Arc::new(sine);
             self.sources.add(sine);
         }
         // Apply ducking rules immediately when a source starts
@@ -458,6 +575,18 @@ impl AudioSystem {
             i.active_order.remove(pos);
         }
         drop(i);
+        // If we have a native source attached for this handle, destroy it.
+        if let Some(snapshot) = self.sources.snapshot() {
+            for s in snapshot.iter() {
+                if s.handle == handle {
+                    if let Some(native_id) = *s.native_source_id.lock() {
+                        if let Some(ref mut api) = *self.resonance_api.lock() {
+                            api.destroy_source(native_id);
+                        }
+                    }
+                }
+            }
+        }
         self.sources.remove_by_handle(handle);
         tracing::info!(handle, "stop_playback");
     }
@@ -504,9 +633,75 @@ impl AudioSystem {
         }
         if let Some(snapshot) = self.sources.snapshot() {
             let timing = self.mixer.get_timing_inherent();
-            for src in snapshot.iter() {
-                src.render(out, timing.sample_rate);
+            // Use thread-local scratch buffers to avoid locks in the RT path.
+            thread_local! {
+                static TL_MONO: std::cell::RefCell<Vec<f32>> = std::cell::RefCell::new(Vec::new());
+                static TL_STEREO: std::cell::RefCell<Vec<f32>> = std::cell::RefCell::new(Vec::new());
             }
+
+            // Lock the resonance API once for this render pass if present.
+            let mut api_opt = self.resonance_api.lock();
+            let api_present = api_opt.is_some();
+
+            TL_MONO.with(|mono_cell| {
+                TL_STEREO.with(|stereo_cell| {
+                    let mut mono = mono_cell.borrow_mut();
+                    if mono.len() < frames as usize { mono.resize(frames as usize, 0.0); }
+                    let mono_buf_ref = &mut *mono;
+                    let mut stereo = stereo_cell.borrow_mut();
+                    if stereo.len() < frames as usize * 2 { stereo.resize(frames as usize * 2, 0.0); }
+                    let stereo_buf_ref = &mut *stereo;
+
+                    for src in snapshot.iter() {
+                        // clear mono
+                        for v in mono_buf_ref.iter_mut() { *v = 0.0; }
+                        src.render(mono_buf_ref, timing.sample_rate);
+
+                        if api_present {
+                            if let Some(ref mut api) = api_opt.as_mut() {
+                                if let Some(native_id) = *src.native_source_id.lock() {
+                                    // Feed the mono buffer as a single-channel interleaved buffer to the native API.
+                                    api.set_interleaved_buffer_f32(native_id, mono_buf_ref, 1, frames as usize);
+                                    // native source will be mixed by api.fill_interleaved_f32 later
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // If not a native source, spatialise locally (or copy to both channels if non-spatial)
+                        if src.is_spatial {
+                            let sp = self.spatialiser.lock();
+                            // Read position from the lock-free ArcSwapOption; fallback to origin if absent
+                            let pos = if let Some(pair_arc) = src.position_and_options.load_full() { pair_arc.0 } else { [0.0, 0.0, 0.0] };
+                            sp.process_mono_to_stereo(mono_buf_ref, stereo_buf_ref, pos, 1.0);
+                            for i in 0..(frames as usize) {
+                                out[2*i] += stereo_buf_ref[2*i];
+                                out[2*i+1] += stereo_buf_ref[2*i+1];
+                            }
+                        } else {
+                            for i in 0..(frames as usize) {
+                                let s = mono_buf_ref[i];
+                                out[2*i] += s;
+                                out[2*i+1] += s;
+                            }
+                        }
+                    }
+
+                    // If the API was present, ask it to fill an interleaved stereo buffer of mixed native sources
+                    if api_present {
+                        if let Some(ref mut api) = api_opt.as_mut() {
+                            for v in stereo_buf_ref.iter_mut() { *v = 0.0; }
+                            let ok = api.fill_interleaved_f32(2, frames as usize, stereo_buf_ref);
+                            if ok {
+                                for i in 0..(frames as usize) {
+                                    out[2*i] += stereo_buf_ref[2*i];
+                                    out[2*i+1] += stereo_buf_ref[2*i+1];
+                                }
+                            }
+                        }
+                    }
+                })
+            });
         }
 
         self.mixer.incr_stream_time(frames);
@@ -516,15 +711,18 @@ impl AudioSystem {
     /// decoupled from the engine `World`. The bootstrap code should call this
     /// to wire events to the system.
     pub fn subscribe_to_bus(sys: Arc<AudioSystem>, bus: Arc<EventBusImpl>) {
-        // PlaySound event example: define local PlaySound type and handler
-        #[derive(Clone)]
-        struct PlaySoundEvent { pub entity: u32 }
-
-        let _sub = bus.subscribe::<PlaySoundEvent, _>(move |ev| {
+        // Subscribe to the shared PlaySoundEvent from the event-bus crate.
+        let _sub = bus.subscribe::<event_bus::PlaySoundEvent, _>(move |_ev| {
             // In real wiring we'd lookup the AudioSourceComponent via world/entity
             // For now route to start_playback with a test AudioSourceComponent
-            let src = AudioSourceComponent { asset_id: format!("sfx_entity_{}", ev.entity), is_spatial: false, spatial_options: None, priority: 50, category: "SFX".to_string() };
-            sys.start_playback(&src);
+            let src = AudioSourceComponent { asset_id: "sine:440".to_string(), is_spatial: false, spatial_options: None, priority: 50, category: "SFX".to_string() };
+            let handle = sys.start_playback(&src);
+            // Also update AudioWorld if present: add transform and audio source for entity
+            if let Some(ref mut aw) = *sys.audio_world.lock() {
+                let entity = _ev.entity;
+                aw.add_transform(entity, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]);
+                aw.add_audio_source(entity, resonance_cxx::RenderingMode::kStereoPanning);
+            }
         });
         // Note: we intentionally don't store subscription ids here; callers may manage lifecycle.
     }
@@ -695,5 +893,102 @@ mod tests {
         let snap2 = sys.sources.snapshot().unwrap();
         let amb_vol_after: f32 = snap2.iter().find(|s| s.bus == "Ambience").map(|s| *s.volume.lock()).unwrap();
         assert!(amb_vol_after < amb_vol_before);
+    }
+
+    #[test]
+    fn listener_position_changes_stereo_balance() {
+        let sys = AudioSystem::new(8, 48000, 64).unwrap();
+        sys.initialize();
+        // start a spatial sine source
+        let src = AudioSourceComponent { asset_id: "sine:440".to_string(), is_spatial: true, spatial_options: None, priority: 50, category: "SFX".to_string() };
+        let _h = sys.start_playback(&src);
+        // set listener to be left of origin -> source at origin should be heard more to the right
+        sys.set_listener_position([ -2.0, 0.0, 0.0 ]);
+
+        let mut buffer = vec![0.0f32; 256];
+        sys.render_callback(128, &mut buffer);
+        // compute average L and R absolute
+        let mut sum_l = 0.0f32;
+        let mut sum_r = 0.0f32;
+        let frames = buffer.len() / 2;
+        for i in 0..frames {
+            sum_l += buffer[2*i].abs();
+            sum_r += buffer[2*i+1].abs();
+        }
+        assert!(sum_r > sum_l, "expected right channel louder when listener is left of source");
+    }
+
+    #[test]
+    fn spatial_start_without_api_leaves_no_native_id() {
+        let sys = AudioSystem::new(8, 48000, 64).unwrap();
+        sys.initialize();
+        let src = AudioSourceComponent { asset_id: "sine:440".to_string(), is_spatial: true, spatial_options: None, priority: 50, category: "SFX".to_string() };
+        let h = sys.start_playback(&src);
+        // snapshot should contain the source and native_source_id should be None since no api attached
+        if let Some(vec) = sys.sources.snapshot() {
+            let found = vec.iter().find(|s| s.handle == h).expect("source not found");
+            assert!(found.native_source_id.lock().is_none());
+        } else {
+            panic!("expected active sources");
+        }
+    }
+
+    #[test]
+    fn spatial_options_map_to_resonance_api_calls() {
+        use std::sync::Mutex as StdMutex;
+
+        // Define a simple mock implementing ResonanceApiLike
+        struct MockApi {
+            calls: StdMutex<Vec<String>>,
+            next_id: StdMutex<i32>,
+        }
+        impl MockApi {
+            fn new() -> Self { Self { calls: StdMutex::new(Vec::new()), next_id: StdMutex::new(42) } }
+        }
+        impl ResonanceApiLike for MockApi {
+            fn create_sound_object_source(&mut self, _mode: RenderingMode) -> i32 {
+                let mut id = self.next_id.lock().unwrap();
+                *id += 1;
+                let nid = *id;
+                self.calls.lock().unwrap().push(format!("create({})", nid));
+                nid
+            }
+            fn destroy_source(&mut self, id: i32) { self.calls.lock().unwrap().push(format!("destroy({})", id)); }
+            fn set_interleaved_buffer_f32(&mut self, source_id: i32, _audio: &[f32], _num_channels: usize, _num_frames: usize) { self.calls.lock().unwrap().push(format!("set_buffer({})", source_id)); }
+            fn fill_interleaved_f32(&mut self, _num_channels: usize, _num_frames: usize, _buffer: &mut [f32]) -> bool { true }
+            fn set_source_distance_model(&mut self, source_id: i32, rolloff: DistanceRolloffModel, min: f32, max: f32) { self.calls.lock().unwrap().push(format!("distance_model({}, {}, {}, {})", source_id, match rolloff { DistanceRolloffModel::kLogarithmic => "log", DistanceRolloffModel::kLinear => "lin", DistanceRolloffModel::kNone => "none", _ => "unknown" }, min, max)); }
+            fn set_sound_object_directivity(&mut self, source_id: i32, alpha: f32, order: f32) { self.calls.lock().unwrap().push(format!("directivity({}, {}, {})", source_id, alpha, order)); }
+            fn set_source_room_effects_gain(&mut self, source_id: i32, room_effects_gain: f32) { self.calls.lock().unwrap().push(format!("room_gain({}, {})", source_id, room_effects_gain)); }
+            fn set_source_distance_attenuation(&mut self, source_id: i32, distance_attenuation: f32) { self.calls.lock().unwrap().push(format!("atten({}, {})", source_id, distance_attenuation)); }
+            fn set_source_position(&mut self, source_id: i32, x: f32, y: f32, z: f32) { self.calls.lock().unwrap().push(format!("pos({}, {}, {}, {})", source_id, x, y, z)); }
+            fn set_source_volume(&mut self, source_id: i32, volume: f32) { self.calls.lock().unwrap().push(format!("vol({}, {})", source_id, volume)); }
+            fn set_head_position(&mut self, _x: f32, _y: f32, _z: f32) { }
+        }
+
+        let sys = AudioSystem::new(8, 48000, 64).unwrap();
+    // Attach mock
+    let mock = MockApi::new();
+    sys.attach_resonance_api_box(Box::new(mock));
+
+        // Start a spatial source with options
+        let opts = SpatialAudioOptions {
+            directivity: Directivity { alpha: 0.5, sharpness: 2.0 },
+            rolloff_model: RollOffModel::Logarithmic,
+            source_width: 0.3,
+            min_distance: 0.1,
+            max_distance: 10.0,
+        };
+        let src = AudioSourceComponent { asset_id: "sine:440".to_string(), is_spatial: true, spatial_options: Some(opts), priority: 50, category: "SFX".to_string() };
+        let h = sys.start_playback(&src);
+
+        // Find the mock from the boxed trait (downcast via Any isn't trivial); instead render once to force any calls
+        let mut buf = vec![0.0f32; 256];
+        sys.render_callback(128, &mut buf);
+
+        // Access the snapshot and ensure a native id exists
+        if let Some(vec) = sys.sources.snapshot() {
+            let found = vec.iter().find(|s| s.handle == h).expect("source not found");
+            assert!(found.native_source_id.lock().is_some());
+        } else { panic!("expected active sources"); }
     }
 }

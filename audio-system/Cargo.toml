@@ -11,6 +11,7 @@ tracing = "0.1"
 crossbeam = "0.8"
 arc-swap = "1.7"
 event-bus = { path = "../event-bus" }
+resonance-cxx = { path = "../resonance-cxx" }
 
 [lib]
 name = "audio_system"
