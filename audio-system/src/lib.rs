@@ -28,35 +28,9 @@ impl OddioEngine {
     }
 }
 
-#[cfg(test)]
-mod bus_tests {
-    use super::*;
-    use std::sync::Arc;
-    use event_bus::EventBusImpl;
-
-    #[test]
-    fn bus_wiring_triggers_play() {
-        let sys = Arc::new(AudioSystem::new(8, 48000, 64).unwrap());
-        let bus = Arc::new(EventBusImpl::new());
-
-        // Use the associated method: subscribe_to_bus
-        AudioSystem::subscribe_to_bus(sys.clone(), bus.clone());
-
-    // publish a PlaySound using the shared type
-    bus.publish(event_bus::PlaySoundEvent { entity: 1 });
-        // drain the bus so handlers run
-        bus.drain();
-
-        // after handling, expect at least one active source (start_playback created something)
-        let snap = sys.sources.snapshot();
-        assert!(snap.is_some());
-        let vec = snap.unwrap();
-        assert!(!vec.is_empty());
-    }
-}
 use std::f32::consts::PI;
 use std::sync::Arc;
-use event_bus::EventBusImpl;
+// event-bus tests/bridging removed - use Bevy Events via engine-core instead.
 mod spacialiser;
 use spacialiser::Spatialiser;
 mod audio_world;
@@ -707,24 +681,30 @@ impl AudioSystem {
         self.mixer.incr_stream_time(frames);
     }
 
-    /// Subscribe to an EventBus implementation. This keeps the AudioSystem
-    /// decoupled from the engine `World`. The bootstrap code should call this
-    /// to wire events to the system.
-    pub fn subscribe_to_bus(sys: Arc<AudioSystem>, bus: Arc<EventBusImpl>) {
-        // Subscribe to the shared PlaySoundEvent from the event-bus crate.
-        let _sub = bus.subscribe::<event_bus::PlaySoundEvent, _>(move |_ev| {
-            // In real wiring we'd lookup the AudioSourceComponent via world/entity
-            // For now route to start_playback with a test AudioSourceComponent
-            let src = AudioSourceComponent { asset_id: "sine:440".to_string(), is_spatial: false, spatial_options: None, priority: 50, category: "SFX".to_string() };
-            let handle = sys.start_playback(&src);
-            // Also update AudioWorld if present: add transform and audio source for entity
-            if let Some(ref mut aw) = *sys.audio_world.lock() {
-                let entity = _ev.entity;
-                aw.add_transform(entity, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]);
-                aw.add_audio_source(entity, resonance_cxx::RenderingMode::kStereoPanning);
-            }
-        });
-        // Note: we intentionally don't store subscription ids here; callers may manage lifecycle.
+    /// Consume PlaySoundEvent from the engine's Bevy Events and trigger playback.
+    /// This function is a bevy-ecs system that should be registered into the
+    /// engine variable schedule (or the main app schedule). It expects the
+    /// `Events<engine_core::events::PlaySoundEvent>` resource to be present.
+    /// Handle a single PlaySoundEvent. This is a small helper so the
+    /// application/engine can register a Bevy system that reads
+    /// `Events<engine_core::events::PlaySoundEvent>` and calls this helper
+    /// for each event without forcing `audio-system` to depend on Bevy.
+    pub fn handle_play_sound_event(sys: &AudioSystem, ev: engine_core::events::PlaySoundEvent) {
+        let src = AudioSourceComponent {
+            asset_id: "sine:440".to_string(),
+            is_spatial: false,
+            spatial_options: None,
+            priority: 50,
+            category: "SFX".to_string(),
+        };
+        let _handle = sys.start_playback(&src);
+        // Lock the audio_world mutex and, if present, update transforms/sources.
+        let mut aw_lock = sys.audio_world.lock();
+        if let Some(ref mut aw) = aw_lock.as_mut() {
+            let entity = ev.entity;
+            aw.add_transform(entity.index(), [0.0_f32, 0.0_f32, 0.0_f32], [0.0_f32, 0.0_f32, 0.0_f32, 1.0_f32]);
+            aw.add_audio_source(entity.index(), resonance_cxx::RenderingMode::kStereoPanning);
+        }
     }
 }
 

@@ -5,17 +5,14 @@ resolver = "3"
 members = [
 	"audio-backend",
 	"audio-system",
-	"event-bus",
 	"resonance-cxx",
 	"engine-core",
 	"asset-manager",
 	"app-android",
-	"app-windows"
-	,
 	"integration-tests",
-	"tools/asset-packer"
-	,"tools/sfx-convert"
-	,"tools/asset-utils"
-	,"tools/pkg-validator"
-	,"resonance-audio-engine"
+	"tools/asset-packer",
+	"tools/sfx-convert",
+	"tools/asset-utils",
+	"tools/pkg-validator",
+	"resonance-audio-engine"
 ]

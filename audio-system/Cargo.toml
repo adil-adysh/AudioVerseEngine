@@ -10,7 +10,8 @@ parking_lot = "0.12"
 tracing = "0.1"
 crossbeam = "0.8"
 arc-swap = "1.7"
-event-bus = { path = "../event-bus" }
+bevy_ecs = "0.11"
+engine-core = { path = "../engine-core" }
 resonance-cxx = { path = "../resonance-cxx" }
 
 [lib]

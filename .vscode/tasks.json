@@ -1,31 +1,64 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "cargo build",
-      "type": "shell",
-      "command": "cargo build",
-      "group": "build",
-      "presentation": {"reveal": "always"}
-    },
-    {
-      "label": "cargo test",
-      "type": "shell",
-      "command": "cargo test",
-      "group": "test",
-      "presentation": {"reveal": "always"}
-    },
-    {
-      "label": "cargo clippy",
-      "type": "shell",
-      "command": "cargo clippy --all-targets --all-features -- -D warnings",
-      "presentation": {"reveal": "always"}
-    },
-    {
-      "label": "cargo fmt",
-      "type": "shell",
-      "command": "cargo fmt",
-      "presentation": {"reveal": "always"}
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cargo build",
+			"type": "shell",
+			"command": "cargo build",
+			"group": "build",
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		{
+			"label": "cargo test",
+			"type": "shell",
+			"command": "cargo test",
+			"group": "test",
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		{
+			"label": "cargo clippy",
+			"type": "shell",
+			"command": "cargo clippy --all-targets --all-features -- -D warnings",
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		{
+			"label": "cargo fmt",
+			"type": "shell",
+			"command": "cargo fmt",
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		// app-windows task removed — crate deleted
+		{
+			"label": "engine-core: cargo build",
+			"type": "shell",
+			"command": "cargo build -p engine-core",
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		{
+			"label": "engine-core: cargo test",
+			"type": "shell",
+			"command": "cargo test -p engine-core",
+			"group": "test",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"presentation": {
+				"reveal": "always"
+			}
+		}
+	]
 }
