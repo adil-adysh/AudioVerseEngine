@@ -158,6 +158,26 @@ impl Shape3D {
         }
     }
 
+    /// Contains test with a small margin for hysteresis. Positive margin expands the shape slightly.
+    pub fn contains_with_margin(&self, p: glam::Vec3, margin: f32) -> bool {
+        match self {
+            Shape3D::Aabb(a) => {
+                let m = glam::Vec3::splat(margin.max(0.0));
+                let expanded = Aabb { min: a.min - m, max: a.max + m };
+                expanded.contains(p)
+            }
+            Shape3D::Obb(o) => {
+                let expanded = Obb { center: o.center, half_extents: o.half_extents + glam::Vec3::splat(margin.max(0.0)), rotation: o.rotation };
+                expanded.contains(p)
+            }
+            Shape3D::Sphere(s) => {
+                let e = Sphere { center: s.center, radius: (s.radius + margin.max(0.0)).max(0.0) };
+                e.contains(p)
+            }
+            Shape3D::Union(children) => children.iter().any(|c| c.contains_with_margin(p, margin)),
+        }
+    }
+
     /// Segment intersection (rough, conservative): true if the movement segment intersects the shape.
     pub fn segment_intersects(&self, p0: glam::Vec3, p1: glam::Vec3) -> bool {
         match self {
@@ -171,6 +191,16 @@ impl Shape3D {
             }
             Shape3D::Sphere(s) => segment_intersects_sphere(p0, p1, *s),
             Shape3D::Union(children) => children.iter().any(|c| c.segment_intersects(p0, p1)),
+        }
+    }
+
+    /// Approximate center of the shape volume
+    pub fn center(&self) -> glam::Vec3 {
+        match self {
+            Shape3D::Aabb(a) => (a.min + a.max) * 0.5,
+            Shape3D::Obb(o) => o.center,
+            Shape3D::Sphere(s) => s.center,
+            Shape3D::Union(children) => children.first().map(|c| c.center()).unwrap_or(glam::Vec3::ZERO),
         }
     }
 }
@@ -228,6 +258,10 @@ pub struct SpaceComponent {
     pub medium: MediumType,
 }
 
+impl SpaceComponent {
+    pub fn center(&self) -> glam::Vec3 { self.bounds.center() }
+}
+
 /// Tracks which spaces an entity is currently inside (derived)
 #[derive(Component, Debug, Clone, Default)]
 pub struct InsideSpaces {
@@ -241,6 +275,13 @@ pub struct NavigationState {
     pub speed: f32, // units per second
 }
 
+/// A sequence of waypoints to follow (world-space positions)
+#[derive(Component, Debug, Clone, Default)]
+pub struct NavigationPath {
+    pub waypoints: Vec<glam::Vec3>,
+    pub index: usize,
+}
+
 /// Door/window/portal connecting two spaces with a small volume the entity must cross
 #[derive(Component, Debug, Clone)]
 pub struct PortalComponent {
@@ -249,14 +290,36 @@ pub struct PortalComponent {
     pub shape: Shape3D,
     pub bidirectional: bool,
     pub is_open: bool,
-    /// If set, only entities with at least one matching tag may pass
-    pub allow_tags: Option<HashSet<String>>,
+    /// If non-zero, only entities whose traversal mask intersects this mask may pass
+    pub allow_mask: u64,
 }
 
-/// Tags describing traversal abilities or affiliations (e.g., "player", "npc", "ghost")
-#[derive(Component, Debug, Clone, Default)]
-pub struct TraversalTags {
-    pub tags: HashSet<String>,
+/// Tag registry providing stable bit indices for string tags
+#[derive(Resource, Debug, Default, Clone)]
+pub struct TagRegistry {
+    pub map: std::collections::HashMap<String, u8>,
+    pub next_bit: u8,
+}
+
+impl TagRegistry {
+    pub fn bit_for(&mut self, tag: &str) -> u8 {
+        if let Some(&b) = self.map.get(tag) { return b; }
+        let b = self.next_bit.min(63);
+        self.map.insert(tag.to_string(), b);
+        if self.next_bit < 63 { self.next_bit += 1; }
+        b
+    }
+    pub fn mask_for<'a, I: IntoIterator<Item=&'a str>>(&mut self, tags: I) -> u64 {
+        let mut m = 0u64;
+        for t in tags { m |= 1u64 << self.bit_for(t); }
+        m
+    }
+}
+
+/// Bitmask tags describing traversal affiliations (e.g., player/npc)
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct TraversalMask {
+    pub mask: u64,
 }
 
 /// Ability flag: can climb walls to exit spaces without using portals
@@ -270,3 +333,19 @@ pub struct CanDive;
 /// Previous frame position, used for detecting portal crossings
 #[derive(Component, Debug, Clone, Copy)]
 pub struct PreviousPosition(pub glam::Vec3);
+
+/// Precomputed space graph indices to speed up portal lookups
+#[derive(Resource, Debug, Default, Clone)]
+pub struct SpaceGraph {
+    /// Map space entity -> portal entity IDs that originate from that space
+    pub portals_from: std::collections::HashMap<Entity, Vec<Entity>>,
+    /// Map space entity -> portal entity IDs that lead into that space (reverse edges)
+    pub portals_to: std::collections::HashMap<Entity, Vec<Entity>>,
+}
+
+/// Enable/Configure navmesh-based guidance cues for an entity
+#[derive(Component, Debug, Clone, Copy)]
+pub struct NavmeshGuidance {
+    pub boundary_warn_distance: f32, // meters
+    pub turn_cue_angle_deg: f32,     // degrees
+}

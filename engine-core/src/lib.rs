@@ -5,6 +5,8 @@ pub mod components;
 pub mod engine;
 pub mod events;
 pub mod physics;
+pub mod pathfinding;
+pub mod navmesh;
 pub mod transform;
 pub mod systems;
 

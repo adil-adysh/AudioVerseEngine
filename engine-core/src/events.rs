@@ -58,6 +58,15 @@ impl bevy_ecs::event::Event for OpenAudioStreamEvent {}
 pub struct CloseAudioStreamEvent { pub stream_id: u64 }
 impl bevy_ecs::event::Event for CloseAudioStreamEvent {}
 
+// --- Acoustics events ---
+#[derive(Debug, Clone)]
+pub enum AcousticsEvent {
+    MediumChanged { entity: Entity, from: crate::components::MediumType, to: crate::components::MediumType },
+    RoomEntered { entity: Entity, room: Entity, material: Option<String> },
+    RoomExited { entity: Entity, room: Entity },
+}
+impl bevy_ecs::event::Event for AcousticsEvent {}
+
 // Helper: register Bevy Events resources at bootstrap time
 pub fn init_event_resources(world: &mut World) {
     world.insert_resource(Events::<PlaySoundEvent>::default());
@@ -69,6 +78,11 @@ pub fn init_event_resources(world: &mut World) {
     world.insert_resource(Events::<ReleaseAssetEvent>::default());
     world.insert_resource(Events::<OpenAudioStreamEvent>::default());
     world.insert_resource(Events::<CloseAudioStreamEvent>::default());
+    world.insert_resource(Events::<AcousticsEvent>::default());
+    // NavMesh cue events
+    world.insert_resource(Events::<BoundaryProximityEvent>::default());
+    world.insert_resource(Events::<WayfindingCueEvent>::default());
+    world.insert_resource(Events::<OcclusionEstimateEvent>::default());
 }
 
 /// Physics collision event payload
@@ -102,6 +116,11 @@ pub fn update_event_resources(world: &mut World) {
     world.resource_mut::<Events<ReleaseAssetEvent>>().update();
     world.resource_mut::<Events<OpenAudioStreamEvent>>().update();
     world.resource_mut::<Events<CloseAudioStreamEvent>>().update();
+    world.resource_mut::<Events<AcousticsEvent>>().update();
+    // NavMesh cue events
+    if let Some(mut ev) = world.get_resource_mut::<Events<BoundaryProximityEvent>>() { ev.update(); }
+    if let Some(mut ev) = world.get_resource_mut::<Events<WayfindingCueEvent>>() { ev.update(); }
+    if let Some(mut ev) = world.get_resource_mut::<Events<OcclusionEstimateEvent>>() { ev.update(); }
     if let Some(mut ev) = world.get_resource_mut::<Events<PhysicsCollisionEvent>>() {
         ev.update();
     }
@@ -134,3 +153,16 @@ pub fn ensure_space_nav_events(world: &mut World) {
         world.insert_resource(Events::<ExitSpaceEvent>::default());
     }
 }
+
+// --- NavMesh cue events ---
+#[derive(Debug, Clone)]
+pub struct BoundaryProximityEvent { pub entity: Entity, pub distance: f32 }
+impl bevy_ecs::event::Event for BoundaryProximityEvent {}
+
+#[derive(Debug, Clone)]
+pub struct WayfindingCueEvent { pub entity: Entity, pub target: glam::Vec3, pub turn: f32 }
+impl bevy_ecs::event::Event for WayfindingCueEvent {}
+
+#[derive(Debug, Clone)]
+pub struct OcclusionEstimateEvent { pub entity: Entity, pub source: Entity, pub occlusion: f32 }
+impl bevy_ecs::event::Event for OcclusionEstimateEvent {}
