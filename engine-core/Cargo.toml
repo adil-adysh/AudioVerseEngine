@@ -1,7 +1,7 @@
 [package]
 name = "engine-core"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 bevy_ecs = "0.11"
@@ -9,8 +9,6 @@ thiserror = "1.0"
 glam = "0.23"
 # audio-system integration should be wired by the app to avoid cyclic
 # path-dependencies; keep engine-core independent.
-# Physics: Rapier (3D). We pin a recent, stable version to use as the
-# primary physics backend for the next few years. If you prefer 2D,
-# switch to `rapier2d` and `parry2d`.
+# Physics: Rapier (3D). Pin a recent stable version.
 rapier3d = "0.23"
 parry3d = "0.23"

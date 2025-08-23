@@ -2,8 +2,11 @@
 //! This is a lightweight start matching the engine public API flow.
 
 pub mod components;
-pub mod events;
 pub mod engine;
+pub mod events;
+pub mod physics;
+pub mod transform;
+pub mod systems;
 
 pub use engine::Engine;
 
