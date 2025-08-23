@@ -18,7 +18,6 @@ use crate::components::{
 use crate::events::{ListenerTransformEvent, NavigateToEvent, EnterSpaceEvent, ExitSpaceEvent};
 use crate::events::AcousticsEvent;
 use crate::components::MediumType;
-use crate::navmesh as nm;
 
 /// Simple time step resource for variable-loop systems
 #[derive(Resource, Debug, Clone, Copy)]
@@ -348,46 +347,4 @@ pub fn space_graph_index_system(
     }
 }
 
-/// Emit boundary proximity cues based on NavMesh
-pub fn navmesh_boundary_cues_system(
-    navmesh: Option<Res<nm::NavMesh>>,
-    mut events: ResMut<Events<crate::events::BoundaryProximityEvent>>,
-    q: Query<(Entity, &TransformComponent, Option<&crate::components::NavmeshGuidance>)>,
-) {
-    let Some(nav) = navmesh else { return; };
-    for (e, t, cfg) in q.iter() {
-        let Some(idx) = nav.nearest_poly(nm::vec3_to_p2(t.position)) else { continue; };
-        let p2 = nav.clamp_to_poly(idx, nm::vec3_to_p2(t.position));
-        let dist = nav.boundary_distance(idx, p2);
-        if let Some(g) = cfg { if dist <= g.boundary_warn_distance { events.send(crate::events::BoundaryProximityEvent { entity: e, distance: dist }); } }
-    }
-}
-
-/// Emit simple wayfinding/turn cues: compare current direction to next waypoint vector.
-pub fn navmesh_wayfinding_cues_system(
-    navmesh: Option<Res<nm::NavMesh>>,
-    mut events: ResMut<Events<crate::events::WayfindingCueEvent>>,
-    q: Query<(Entity, &TransformComponent, Option<&crate::components::NavmeshGuidance>, Option<&crate::components::NavigationPath>)>,
-) {
-    let _ = navmesh; // reserved for more advanced occlusion/path smoothing
-    for (e, t, cfg, path) in q.iter() {
-        let Some(cfg) = cfg else { continue; };
-        let Some(path) = path else { continue; };
-        if path.index >= path.waypoints.len() { continue; }
-        let target = path.waypoints[path.index];
-    let to = target - t.position;
-        let fwd = glam::Vec3::Z; // assume +Z as forward without a heading component
-        let turn = angle_signed_on_y(fwd, to);
-        if turn.abs().to_degrees() >= cfg.turn_cue_angle_deg {
-            events.send(crate::events::WayfindingCueEvent { entity: e, target, turn });
-        }
-    }
-}
-
-fn angle_signed_on_y(a: glam::Vec3, b: glam::Vec3) -> f32 {
-    let a2 = glam::vec2(a.x, a.z).normalize_or_zero();
-    let b2 = glam::vec2(b.x, b.z).normalize_or_zero();
-    let dot = a2.dot(b2).clamp(-1.0, 1.0);
-    let det = a2.perp_dot(b2);
-    det.atan2(dot)
-}
+// NavMesh-related cue systems removed; for Bevy-way integration use bevy_navmesh and raycasting plugins downstream.

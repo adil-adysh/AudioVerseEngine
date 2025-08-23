@@ -8,7 +8,6 @@ use crate::events::{
     CloseAudioStreamEvent, LoadAssetEvent, NavigateToEvent, OpenAudioStreamEvent, PauseSoundEvent,
     PlaySoundEvent, ReleaseAssetEvent, SetVolumeEvent, StopSoundEvent,
 };
-use crate::navmesh::NavMesh;
 use crate::systems::{
     audio_listener_system, audio_system, navigation_step_system, navigation_system,
     set_update_timestep_system, space_membership_system,
@@ -44,6 +43,15 @@ impl Engine {
             app.world
                 .insert_resource(crate::physics::PhysicsResources::default());
         }
+        // Ensure physics collision event resource exists
+        if app
+            .world
+            .get_resource::<bevy_ecs::prelude::Events<crate::events::PhysicsCollisionEvent>>()
+            .is_none()
+        {
+            app.world
+                .insert_resource(bevy_ecs::prelude::Events::<crate::events::PhysicsCollisionEvent>::default());
+        }
 
         // Wire all engine systems into the Bevy Update schedule in deterministic order.
     use bevy_ecs::schedule::IntoSystemConfigs;
@@ -52,7 +60,11 @@ impl Engine {
     app.add_systems(Update, (navigation_step_system, crate::physics::physics_spawn_system, crate::physics::physics_step_system).chain());
     app.add_systems(Update, (render_transform_system, audio_listener_system, audio_system).chain());
     app.add_systems(Update, (crate::transform::despawn_cleanup_system, crate::systems::space_graph_index_system).chain());
-    app.add_systems(Update, (crate::systems::navmesh_boundary_cues_system, crate::systems::navmesh_wayfinding_cues_system, space_membership_system).chain());
+    // Space membership is always part of core
+    app.add_systems(Update, (space_membership_system).chain());
+
+        // Register optional Bevy extras (navmesh + raycast) if feature enabled
+        crate::bevy_extras::register_extras_if_enabled(&mut app);
 
         Self { app }
     }
@@ -605,26 +617,7 @@ impl Engine {
     }
 
     // --- NavMesh APIs ---
-    /// Build a simple navmesh from axis-aligned rectangles in XZ plane. Y is ignored.
-    pub fn set_navmesh_rects(&mut self, rects: &[(f32, f32, f32, f32)]) {
-        let mesh = NavMesh::from_rects(rects);
-    self.app.world.insert_resource(mesh);
-    }
-
-    /// Enable navmesh audio cues on an entity with thresholds.
-    pub fn enable_navmesh_cues(
-        &mut self,
-        entity: Entity,
-        boundary_warn_distance: f32,
-        turn_cue_angle_deg: f32,
-    ) {
-    if let Some(mut emut) = self.app.world.get_entity_mut(entity) {
-            emut.insert(crate::components::NavmeshGuidance {
-                boundary_warn_distance,
-                turn_cue_angle_deg,
-            });
-        }
-    }
+    // Navmesh: use Bevy plugins externally; engine no longer provides rect-based mesh builder
 }
 
 impl Default for Engine {

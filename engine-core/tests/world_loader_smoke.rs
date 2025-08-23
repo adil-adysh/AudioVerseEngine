@@ -3,7 +3,6 @@
 use bevy_ecs::prelude::*;
 use engine_core::world_loader::load_world_from_json;
 use engine_core::components::*;
-use engine_core::navmesh;
 
 #[test]
 fn load_world_minimal_and_validate() {
@@ -38,7 +37,7 @@ fn load_world_minimal_and_validate() {
     // Check resources were inserted
     assert!(world.contains_resource::<TagRegistry>());
     assert!(world.contains_resource::<AbilityRegistry>());
-    assert!(world.contains_resource::<navmesh::NavMesh>());
+    // NavMesh is now provided by Bevy plugins downstream, not inserted here.
 
     // Ensure a portal entity with our settings exists
     let mut found = false;

@@ -171,16 +171,7 @@ pub fn load_world_from_json(
     }
 
     // NavMesh
-    if let Some(nm) = map.navmesh {
-        if !nm.polys.is_empty() {
-            let rects: Vec<(f32, f32, f32, f32)> = nm
-                .polys
-                .into_iter()
-                .map(|r| (r[0], r[1], r[2], r[3]))
-                .collect();
-            world.insert_resource(crate::navmesh::NavMesh::from_rects(&rects));
-        }
-    }
+    let _ = map.navmesh; // No-op: navmesh managed by downstream Bevy plugins now.
 
     Ok(id_to_entity)
 }

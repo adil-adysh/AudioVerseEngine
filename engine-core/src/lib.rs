@@ -4,7 +4,6 @@
 pub mod components;
 pub mod engine;
 pub mod events;
-pub mod navmesh;
 pub mod pathfinding;
 pub mod physics;
 pub mod plugin;
@@ -12,6 +11,9 @@ pub mod systems;
 pub mod transform;
 #[cfg(feature = "world-loader")]
 pub mod world_loader;
+
+// Optional Bevy ecosystem integrations (navmesh + raycast)
+mod bevy_extras;
 
 pub use engine::Engine;
 

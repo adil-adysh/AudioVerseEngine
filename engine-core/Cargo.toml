@@ -16,7 +16,11 @@ rapier3d = "0.23"
 parry3d = "0.23"
 
 [features]
+default = ["bevy-extras"]
 world-loader = ["serde", "serde_json", "anyhow"]
+# Optional Bevy ecosystem extras (navigation mesh + raycast). Off by default to keep core light.
+# When enabled, you must also enable matching Bevy version in downstream app.
+bevy-extras = ["dep:bevy_navmesh", "dep:bevy_mod_raycast"]
 
 
 [dependencies.serde]
@@ -30,4 +34,13 @@ optional = true
 
 [dependencies.anyhow]
 version = "1.0"
+optional = true
+
+# Optional extras (only compiled when feature "bevy-extras" is enabled)
+[dependencies.bevy_navmesh]
+version = "*"
+optional = true
+
+[dependencies.bevy_mod_raycast]
+version = "*"
 optional = true

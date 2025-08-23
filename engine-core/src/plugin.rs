@@ -8,6 +8,8 @@ pub struct EngineCorePlugin;
 
 impl Plugin for EngineCorePlugin {
     fn build(&self, app: &mut App) {
+    // Optional Bevy extras (navmesh + raycast)
+    crate::bevy_extras::register_extras_if_enabled(app);
         // Register events and baseline resources (idempotent)
         crate::events::init_event_resources(&mut app.world);
         if app
@@ -26,6 +28,15 @@ impl Plugin for EngineCorePlugin {
         {
             app.world
                 .insert_resource(crate::physics::PhysicsResources::default());
+        }
+        // Physics collision event resource
+        if app
+            .world
+            .get_resource::<bevy_ecs::prelude::Events<crate::events::PhysicsCollisionEvent>>()
+            .is_none()
+        {
+            app.world
+                .insert_resource(bevy_ecs::prelude::Events::<crate::events::PhysicsCollisionEvent>::default());
         }
 
         // Update schedule: staged smaller chains
@@ -64,14 +75,6 @@ impl Plugin for EngineCorePlugin {
             )
                 .chain(),
         );
-        app.add_systems(
-            Update,
-            (
-                crate::systems::navmesh_boundary_cues_system,
-                crate::systems::navmesh_wayfinding_cues_system,
-                crate::systems::space_membership_system,
-            )
-                .chain(),
-        );
+    app.add_systems(Update, (crate::systems::space_membership_system).chain());
     }
 }
