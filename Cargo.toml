@@ -5,6 +5,7 @@ resolver = "3"
 members = [
 	"audio-backend",
 	"audio-system",
+	"event-bus",
 	"resonance-cxx",
 	"engine-core",
 	"asset-manager",

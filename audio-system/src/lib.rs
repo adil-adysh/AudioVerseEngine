@@ -6,6 +6,7 @@ use anyhow::Result;
 use arc_swap::ArcSwapOption;
 use crossbeam::queue::ArrayQueue;
 use parking_lot::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
 
 /// Minimal oddio engine scaffold. Will be replaced with full oddio graph wiring.
@@ -26,8 +27,36 @@ impl OddioEngine {
         // TODO: implement oddio graph mixing
     }
 }
+
+#[cfg(test)]
+mod bus_tests {
+    use super::*;
+    use std::sync::Arc;
+    use event_bus::EventBusImpl;
+
+    #[test]
+    fn bus_wiring_triggers_play() {
+        let sys = Arc::new(AudioSystem::new(8, 48000, 64).unwrap());
+        let bus = Arc::new(EventBusImpl::new());
+
+        // Use the associated method: subscribe_to_bus
+        AudioSystem::subscribe_to_bus(sys.clone(), bus.clone());
+
+    // publish a PlaySound using the shared type
+    bus.publish(event_bus::PlaySoundEvent { entity: 1 });
+        // drain the bus so handlers run
+        bus.drain();
+
+        // after handling, expect at least one active source (start_playback created something)
+        let snap = sys.sources.snapshot();
+        assert!(snap.is_some());
+        let vec = snap.unwrap();
+        assert!(!vec.is_empty());
+    }
+}
 use std::f32::consts::PI;
 use std::sync::Arc;
+use event_bus::EventBusImpl;
 
 /// Simple representation of a 3D vector for transforms.
 pub type Vec3 = [f32; 3];
@@ -109,7 +138,7 @@ pub struct MixerTiming {
 pub struct MixerQueue {
     queue: Arc<ArrayQueue<MixerCommand>>,
     timing: Mutex<MixerTiming>,
-    dropped_count: Mutex<u64>,
+    dropped_count: AtomicU64,
 }
 
 impl MixerQueue {
@@ -121,7 +150,7 @@ impl MixerQueue {
                 buffer_frames,
                 stream_time_frames: 0,
             }),
-            dropped_count: Mutex::new(0),
+            dropped_count: AtomicU64::new(0),
         }
     }
 
@@ -143,7 +172,7 @@ impl MixerQueue {
     }
 
     pub fn dropped_count(&self) -> u64 {
-        *self.dropped_count.lock()
+        self.dropped_count.load(Ordering::Relaxed)
     }
 }
 
@@ -151,8 +180,7 @@ impl IMixerProcessor for MixerQueue {
     fn push(&self, cmd: MixerCommand) {
         if self.queue.push(cmd).is_err() {
             // drop and count
-            let mut c = self.dropped_count.lock();
-            *c += 1;
+            self.dropped_count.fetch_add(1, Ordering::Relaxed);
         }
     }
 
@@ -482,6 +510,23 @@ impl AudioSystem {
         }
 
         self.mixer.incr_stream_time(frames);
+    }
+
+    /// Subscribe to an EventBus implementation. This keeps the AudioSystem
+    /// decoupled from the engine `World`. The bootstrap code should call this
+    /// to wire events to the system.
+    pub fn subscribe_to_bus(sys: Arc<AudioSystem>, bus: Arc<EventBusImpl>) {
+        // PlaySound event example: define local PlaySound type and handler
+        #[derive(Clone)]
+        struct PlaySoundEvent { pub entity: u32 }
+
+        let _sub = bus.subscribe::<PlaySoundEvent, _>(move |ev| {
+            // In real wiring we'd lookup the AudioSourceComponent via world/entity
+            // For now route to start_playback with a test AudioSourceComponent
+            let src = AudioSourceComponent { asset_id: format!("sfx_entity_{}", ev.entity), is_spatial: false, spatial_options: None, priority: 50, category: "SFX".to_string() };
+            sys.start_playback(&src);
+        });
+        // Note: we intentionally don't store subscription ids here; callers may manage lifecycle.
     }
 }
 
