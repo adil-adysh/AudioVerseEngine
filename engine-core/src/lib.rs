@@ -9,6 +9,8 @@ pub mod pathfinding;
 pub mod navmesh;
 pub mod transform;
 pub mod systems;
+#[cfg(feature = "world-loader")]
+pub mod world_loader;
 
 pub use engine::Engine;
 

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "tags": ["player"],
+  "abilities": ["climb"],
+  "spaces": [
+    {"name": "room_a", "shape": {"Aabb": {"min": [0,0,0], "max": [5,5,5]}}, "tags": ["indoors"]},
+    {"name": "room_b", "shape": {"Aabb": {"min": [6,0,0], "max": [11,5,5]}}, "tags": ["indoors"]}
+  ],
+  "portals": [
+    {"from": "room_a", "to": "room_b", "allow_tags": ["player"], "required_abilities": ["climb"], "cost": 1.0}
+  ],
+  "navmesh": {"rects": [[0.0,0.0,12.0,6.0]]}
+}

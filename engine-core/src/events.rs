@@ -40,6 +40,14 @@ impl bevy_ecs::event::Event for PauseSoundEvent {}
 impl bevy_ecs::event::Event for SetVolumeEvent {}
 impl bevy_ecs::event::Event for ListenerTransformEvent {}
 
+/// Emitted when an entity's world position changes (after transforms are computed)
+#[derive(Debug, Clone)]
+pub struct PositionChangedEvent {
+    pub entity: Entity,
+    pub position: glam::Vec3,
+}
+impl bevy_ecs::event::Event for PositionChangedEvent {}
+
 /// Asset/resource management events
 #[derive(Debug, Clone)]
 pub struct LoadAssetEvent { pub asset_id: String }
@@ -74,11 +82,16 @@ pub fn init_event_resources(world: &mut World) {
     world.insert_resource(Events::<PauseSoundEvent>::default());
     world.insert_resource(Events::<SetVolumeEvent>::default());
     world.insert_resource(Events::<ListenerTransformEvent>::default());
+    world.insert_resource(Events::<PositionChangedEvent>::default());
     world.insert_resource(Events::<LoadAssetEvent>::default());
     world.insert_resource(Events::<ReleaseAssetEvent>::default());
     world.insert_resource(Events::<OpenAudioStreamEvent>::default());
     world.insert_resource(Events::<CloseAudioStreamEvent>::default());
     world.insert_resource(Events::<AcousticsEvent>::default());
+    // Navigation & Space events (needed by systems like space_membership_system)
+    world.insert_resource(Events::<NavigateToEvent>::default());
+    world.insert_resource(Events::<EnterSpaceEvent>::default());
+    world.insert_resource(Events::<ExitSpaceEvent>::default());
     // NavMesh cue events
     world.insert_resource(Events::<BoundaryProximityEvent>::default());
     world.insert_resource(Events::<WayfindingCueEvent>::default());
@@ -112,11 +125,16 @@ pub fn update_event_resources(world: &mut World) {
     world.resource_mut::<Events<PauseSoundEvent>>().update();
     world.resource_mut::<Events<SetVolumeEvent>>().update();
     world.resource_mut::<Events<ListenerTransformEvent>>().update();
+    world.resource_mut::<Events<PositionChangedEvent>>().update();
     world.resource_mut::<Events<LoadAssetEvent>>().update();
     world.resource_mut::<Events<ReleaseAssetEvent>>().update();
     world.resource_mut::<Events<OpenAudioStreamEvent>>().update();
     world.resource_mut::<Events<CloseAudioStreamEvent>>().update();
     world.resource_mut::<Events<AcousticsEvent>>().update();
+    // Navigation & Space events
+    if let Some(mut ev) = world.get_resource_mut::<Events<NavigateToEvent>>() { ev.update(); }
+    if let Some(mut ev) = world.get_resource_mut::<Events<EnterSpaceEvent>>() { ev.update(); }
+    if let Some(mut ev) = world.get_resource_mut::<Events<ExitSpaceEvent>>() { ev.update(); }
     // NavMesh cue events
     if let Some(mut ev) = world.get_resource_mut::<Events<BoundaryProximityEvent>>() { ev.update(); }
     if let Some(mut ev) = world.get_resource_mut::<Events<WayfindingCueEvent>>() { ev.update(); }

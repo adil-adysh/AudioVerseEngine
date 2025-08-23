@@ -68,6 +68,7 @@ impl Engine {
         audio_listener_system,
         render_transform_system,
         audio_system,
+    crate::transform::despawn_cleanup_system,
         crate::systems::space_graph_index_system,
         crate::systems::navmesh_boundary_cues_system,
         crate::systems::navmesh_wayfinding_cues_system,
@@ -233,6 +234,24 @@ impl Engine {
         self.world.spawn(SpaceComponent { kind, name: name.into(), bounds: shape, has_ceiling, medium }).id()
     }
 
+    /// Create a generic space with tags and optional medium
+    pub fn create_space_generic(&mut self, name: impl Into<String>, shape: Shape3D, tags: &[&str], medium: Option<MediumType>) -> Entity {
+        // Compute tag mask before spawning to avoid overlapping borrows
+        if !self.world.contains_resource::<crate::components::TagRegistry>() {
+            self.world.insert_resource(crate::components::TagRegistry::default());
+        }
+        let mask = {
+            let mut reg = self.world.resource_mut::<crate::components::TagRegistry>();
+            reg.mask_for(tags.iter().copied())
+        };
+        self.world
+            .spawn((
+                SpaceComponent { kind: SpaceKind::Zone, name: name.into(), bounds: shape, has_ceiling: true, medium: medium.unwrap_or(MediumType::Air) },
+                crate::components::SpaceTags { mask },
+            ))
+            .id()
+    }
+
     // --- Navigation APIs ---
     pub fn ensure_navigation(&mut self, entity: Entity, speed: f32) {
         if let Some(mut e) = self.world.get_entity_mut(entity) {
@@ -327,7 +346,22 @@ impl Engine {
             let mut reg = if self.world.contains_resource::<TagRegistry>() { self.world.resource_mut::<TagRegistry>() } else { self.world.insert_resource(TagRegistry::default()); self.world.resource_mut::<TagRegistry>() };
             allow_mask = reg.mask_for(tags.iter().map(|s| s.as_str()));
         }
-        self.world.spawn(PortalComponent { from, to, shape, bidirectional, is_open, allow_mask }).id()
+        self.world.spawn(PortalComponent { from, to, shape, bidirectional, is_open, allow_mask, required_abilities_mask: 0, cost: 1.0 }).id()
+    }
+
+    /// Add a portal with a richer traversal policy (tags + required abilities + cost)
+    pub fn add_portal_with_policy(&mut self, from: Entity, to: Entity, shape: Shape3D, bidirectional: bool, is_open: bool, allow_tags: &[&str], required_abilities: &[&str], cost: f32) -> Entity {
+        if !self.world.contains_resource::<TagRegistry>() { self.world.insert_resource(TagRegistry::default()); }
+        if !self.world.contains_resource::<crate::components::AbilityRegistry>() { self.world.insert_resource(crate::components::AbilityRegistry::default()); }
+        let allow_mask = {
+            let mut tag_reg = self.world.resource_mut::<TagRegistry>();
+            tag_reg.mask_for(allow_tags.iter().copied())
+        };
+        let req_mask = {
+            let mut abil_reg = self.world.resource_mut::<crate::components::AbilityRegistry>();
+            abil_reg.mask_for(required_abilities.iter().copied())
+        };
+        self.world.spawn(PortalComponent { from, to, shape, bidirectional, is_open, allow_mask, required_abilities_mask: req_mask, cost }).id()
     }
 
     /// Toggle a portal open/closed

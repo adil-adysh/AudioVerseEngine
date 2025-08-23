@@ -1,49 +1,35 @@
 use bevy_ecs::prelude::*;
 use std::sync::Arc;
 
-// Bring in the workspace crates
-use audio_system::AudioSystem;
-use engine_core::events::PlaySoundEvent;
-
-/// Resources to hold shared audio system
-#[derive(Resource)]
-struct SharedAudio(Arc<AudioSystem>);
+use audio_backend::{create_audio_backend, AudioBackend};
+use audio_system::{render_fn_for_system, AudioSystem};
+use engine_core::engine::Engine;
 
 fn main() {
-    // Initialize the audio system
-    let audio = Arc::new(AudioSystem::new(64, 48000, 128).expect("audio system"));
-    audio.initialize();
+    // Create the engine and bootstrap default systems
+    let mut engine = Engine::new();
+    engine.bootstrap();
 
-    // Create a World and add resources (SharedAudio + Bevy Events)
-    let mut world = World::new();
-    // Register the engine event resources so Events<PlaySoundEvent> exists
-    engine_core::events::init_event_resources(&mut world);
-    world.insert_resource(SharedAudio(audio));
+    // Initialize audio-system via bridge and start backend
+    engine_audio::setup_audio_system(&mut engine.world, 48_000, 2, 128);
+    let sys = engine.world.resource::<engine_audio::AudioSystemRes>().0.clone();
+    let mut backend = create_audio_backend().expect("audio backend");
+    backend
+        .start(render_fn_for_system(sys.clone()))
+        .expect("start backend");
 
-    // Build a schedule with two systems: emit (startup) and consume
-    let mut schedule = Schedule::default();
-    schedule.add_systems(emit_demo_play_sound_system);
-    schedule.add_systems(consume_play_sound_events_system);
+    // Create a listener and a source entity
+    let listener = engine.create_entity();
+    engine.set_listener(listener);
+    engine.set_position(listener, glam::Vec3::new(0.0, 1.6, 0.0));
 
-    // Run the schedule once for this demo
-    schedule.run(&mut world);
-}
+    let source = engine.create_entity();
+    engine.add_sound(source, "sine:440");
+    engine.set_position(source, glam::Vec3::new(1.0, 1.6, 0.0));
+    engine.play(source);
 
-/// Startup-style system (runs once) to emit a PlaySoundEvent into the engine Events
-fn emit_demo_play_sound_system(mut events: ResMut<Events<PlaySoundEvent>>) {
-    // Emit a play for entity handle 1
-    events.send(PlaySoundEvent {
-        entity: Entity::from_raw(1),
-    });
-}
-
-/// System that consumes PlaySoundEvent events and calls into audio-system helper
-fn consume_play_sound_events_system(
-    mut reader: Local<EventReader<PlaySoundEvent>>,
-    events: Res<Events<PlaySoundEvent>>,
-    audio_res: Res<SharedAudio>,
-) {
-    for ev in reader.iter(&events) {
-        audio_system::handle_play_sound_event(&audio_res.0, ev.clone());
+    // Simple run loop for a short demo (~2 seconds at 60 FPS)
+    for _ in 0..120 {
+        engine.update(1.0 / 60.0);
     }
 }

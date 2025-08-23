@@ -8,6 +8,7 @@ members = [
 	"resonance-cxx",
 	"engine-core",
 	"asset-manager",
+	"app-cli",
 	"app-android",
 	"integration-tests",
 	"tools/asset-packer",

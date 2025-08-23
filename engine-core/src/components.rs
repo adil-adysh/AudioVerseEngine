@@ -292,6 +292,10 @@ pub struct PortalComponent {
     pub is_open: bool,
     /// If non-zero, only entities whose traversal mask intersects this mask may pass
     pub allow_mask: u64,
+    /// If non-zero, entity must possess all required abilities to pass
+    pub required_abilities_mask: u64,
+    /// Optional traversal cost hint (for pathfinding)
+    pub cost: f32,
 }
 
 /// Tag registry providing stable bit indices for string tags
@@ -320,6 +324,40 @@ impl TagRegistry {
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct TraversalMask {
     pub mask: u64,
+}
+
+/// Optional tag mask describing properties of a space (for querying/filtering)
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct SpaceTags {
+    pub mask: u64,
+}
+
+/// Generic abilities on actors (bitmask); complements specific flags like CanClimb/CanDive
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct Abilities {
+    pub mask: u64,
+}
+
+/// Ability registry providing stable bit indices for string ability names
+#[derive(Resource, Debug, Default, Clone)]
+pub struct AbilityRegistry {
+    pub map: std::collections::HashMap<String, u8>,
+    pub next_bit: u8,
+}
+
+impl AbilityRegistry {
+    pub fn bit_for(&mut self, name: &str) -> u8 {
+        if let Some(&b) = self.map.get(name) { return b; }
+        let b = self.next_bit.min(63);
+        self.map.insert(name.to_string(), b);
+        if self.next_bit < 63 { self.next_bit += 1; }
+        b
+    }
+    pub fn mask_for<'a, I: IntoIterator<Item=&'a str>>(&mut self, names: I) -> u64 {
+        let mut m = 0u64;
+        for n in names { m |= 1u64 << self.bit_for(n); }
+        m
+    }
 }
 
 /// Ability flag: can climb walls to exit spaces without using portals

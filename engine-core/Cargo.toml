@@ -12,3 +12,19 @@ glam = "0.23"
 # Physics: Rapier (3D). Pin a recent stable version.
 rapier3d = "0.23"
 parry3d = "0.23"
+
+[features]
+world-loader = ["serde", "serde_json", "anyhow"]
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
+optional = true
+
+[dependencies.serde_json]
+version = "1.0"
+optional = true
+
+[dependencies.anyhow]
+version = "1.0"
+optional = true

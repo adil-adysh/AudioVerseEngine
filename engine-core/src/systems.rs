@@ -116,7 +116,7 @@ pub fn space_membership_system(
     mut enter_events: ResMut<Events<EnterSpaceEvent>>,
     mut exit_events: ResMut<Events<ExitSpaceEvent>>,
     mut acoustics_events: ResMut<Events<AcousticsEvent>>,
-    mut movers: Query<(Entity, &TransformComponent, Option<&mut InsideSpaces>, Option<&TraversalMask>, Option<&CanClimb>, Option<&CanDive>, Option<&PreviousPosition>)>,
+    mut movers: Query<(Entity, &TransformComponent, Option<&mut InsideSpaces>, Option<&TraversalMask>, Option<&CanClimb>, Option<&CanDive>, Option<&PreviousPosition>, Option<&crate::components::Abilities>)>,
     spaces: Query<(Entity, &SpaceComponent)>,
     portals: Query<(Entity, &PortalComponent)>,
     graph: Option<Res<SpaceGraph>>,
@@ -130,7 +130,7 @@ pub fn space_membership_system(
     // small hysteresis margins to stabilize transitions
     let enter_margin = 0.05f32;
 
-    for (ent, t, inside_opt, tags_opt, can_climb, can_dive, prev_pos) in movers.iter_mut() {
+    for (ent, t, inside_opt, tags_opt, can_climb, can_dive, prev_pos, abilities_opt) in movers.iter_mut() {
         let current: std::collections::HashSet<Entity> = inside_opt
             .as_ref()
             .map(|i| i.spaces.clone())
@@ -195,9 +195,16 @@ pub fn space_membership_system(
             if let Some(prev) = prev_pos {
                 // Search portals relevant to this space (from index if available)
                 let portal_allows = |p: &PortalComponent| -> bool {
-                    p.shape.segment_intersects(prev.0, t.position)
-                        && p.is_open
-                        && tags_opt.map_or(p.allow_mask == 0, |tm| (tm.mask & p.allow_mask) != 0)
+                    if !p.is_open { return false; }
+                    if !p.shape.segment_intersects(prev.0, t.position) { return false; }
+                    // tag filter: require intersection when allow_mask != 0
+                    if !(tags_opt.map_or(p.allow_mask == 0, |tm| (tm.mask & p.allow_mask) != 0)) { return false; }
+                    // abilities: require that actor has all required bits if any
+                    if p.required_abilities_mask != 0 {
+                        let actor_mask = abilities_opt.map(|a| a.mask).unwrap_or(0);
+                        if (actor_mask & p.required_abilities_mask) != p.required_abilities_mask { return false; }
+                    }
+                    true
                 };
                 if let Some(g) = graph.as_ref() {
                     if let Some(list) = g.portals_from.get(space_ent) {
@@ -225,7 +232,16 @@ pub fn space_membership_system(
 
             // Additional permissive check: if we moved into any neighbor space connected by an allowed, open portal, permit the exit.
             if !permitted {
-                let allow_mask_ok = |p: &PortalComponent| tags_opt.map_or(p.allow_mask == 0, |tm| (tm.mask & p.allow_mask) != 0);
+                let allow_mask_ok = |p: &PortalComponent| {
+                    // tags ok
+                    let tags_ok = tags_opt.map_or(p.allow_mask == 0, |tm| (tm.mask & p.allow_mask) != 0);
+                    // abilities ok
+                    let abil_ok = if p.required_abilities_mask == 0 { true } else {
+                        let actor_mask = abilities_opt.map(|a| a.mask).unwrap_or(0);
+                        (actor_mask & p.required_abilities_mask) == p.required_abilities_mask
+                    };
+                    tags_ok && abil_ok
+                };
                 if let Some(g) = graph.as_ref() {
                     // spaces we are now inside
                     for dest in new_set.iter() {
