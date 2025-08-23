@@ -50,7 +50,7 @@ fn load_world_minimal_and_validate() {
     // Grant dive and ensure mask updated (registry should have an entry)
     let dive_mask = {
         let mut abil_reg = world.resource_mut::<AbilityRegistry>();
-        abil_reg.mask_for(["dive"].into_iter())
+        abil_reg.mask_for(["dive"]) // IntoIterator is implemented for arrays
     };
     world.entity_mut(player).insert(Abilities { mask: dive_mask });
     let ab = world.get::<Abilities>(player).unwrap();

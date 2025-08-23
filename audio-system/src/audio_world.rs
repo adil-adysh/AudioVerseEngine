@@ -7,7 +7,7 @@ pub type Quat = [f32; 4];
 /// Component representing a spatial audio source
 pub struct AudioSource {
     pub source_id: i32,
-    pub rendering_mode: RenderingMode,
+    pub _rendering_mode: RenderingMode,
     pub gain: f32,
     pub distance_model: DistanceRolloffModel,
     pub directivity_alpha: f32,
@@ -141,7 +141,7 @@ impl AudioWorld {
         let source_id = self.api.create_sound_object_source(mode);
         self.audio_sources.insert(entity, AudioSource {
             source_id,
-            rendering_mode: mode,
+            _rendering_mode: mode,
             gain: 1.0,
             distance_model: DistanceRolloffModel::kLogarithmic,
             directivity_alpha: 0.0,

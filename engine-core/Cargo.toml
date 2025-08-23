@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 bevy_ecs = "0.11"
+bevy_app = "0.11"
+bevy_time = "0.11"
 thiserror = "1.0"
 glam = "0.23"
 # audio-system integration should be wired by the app to avoid cyclic
@@ -15,6 +17,7 @@ parry3d = "0.23"
 
 [features]
 world-loader = ["serde", "serde_json", "anyhow"]
+
 
 [dependencies.serde]
 version = "1.0"

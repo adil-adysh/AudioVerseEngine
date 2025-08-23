@@ -8,11 +8,15 @@ use engine_core::engine::Engine;
 fn main() {
     // Create the engine and bootstrap default systems
     let mut engine = Engine::new();
-    engine.bootstrap();
 
     // Initialize audio-system via bridge and start backend
-    engine_audio::setup_audio_system(&mut engine.world, 48_000, 2, 128);
-    let sys = engine.world.resource::<engine_audio::AudioSystemRes>().0.clone();
+    engine_audio::setup_audio_system(engine.world_mut(), 48_000, 2, 128);
+    engine_audio::add_systems_to_engine(&mut engine);
+    let sys = engine
+        .world()
+        .resource::<engine_audio::AudioSystemRes>()
+        .0
+        .clone();
     let mut backend = create_audio_backend().expect("audio backend");
     backend
         .start(render_fn_for_system(sys.clone()))

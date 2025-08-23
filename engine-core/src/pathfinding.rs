@@ -42,7 +42,7 @@ where
     let center = |e: Entity| -> glam::Vec3 { center_of(e) };
     let h = |a: Entity, b: Entity| -> u32 {
         let da = center(a) - center(b);
-        (da.length() as f32) as u32
+        da.length() as u32
     };
 
     g_score.insert(start, 0);
@@ -89,5 +89,5 @@ where
     }
     order.reverse();
     // map to centers
-    Some(order.into_iter().map(|e| center(e)).collect())
+    Some(order.into_iter().map(center).collect())
 }

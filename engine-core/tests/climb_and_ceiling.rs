@@ -19,9 +19,8 @@ fn drain_exit_events(
 #[test]
 fn can_exit_no_ceiling_when_can_climb() {
     let mut eng = Engine::new();
-    eng.bootstrap();
-    eng.world.insert_resource(TestEventSink::default());
-    eng.variable_schedule.add_systems(drain_exit_events);
+    eng.world_mut().insert_resource(TestEventSink::default());
+    eng.app_mut().add_systems(bevy_app::Update, drain_exit_events);
 
     // Space with no ceiling
     let space = eng.create_space_with_shape(
@@ -39,14 +38,14 @@ fn can_exit_no_ceiling_when_can_climb() {
     // Without climb ability, try to leave: should be blocked (no Exit)
     eng.navigate_to(mover, glam::vec3(3.0, 0.0, 0.0), 10.0);
     for _ in 0..40 { eng.update(0.05); }
-    let sink = eng.world.resource::<TestEventSink>();
+    let sink = eng.world().resource::<TestEventSink>();
     assert!(!sink.exited.iter().any(|&(_e, s)| s == space), "exit should be blocked without CanClimb");
 
     // Grant climb ability and try again: should exit now
-    drop(sink);
+    let _ = sink;
     eng.grant_climb(mover);
     eng.navigate_to(mover, glam::vec3(3.0, 0.0, 0.0), 10.0);
     for _ in 0..40 { eng.update(0.05); }
-    let sink = eng.world.resource::<TestEventSink>();
+    let sink = eng.world().resource::<TestEventSink>();
     assert!(sink.exited.iter().any(|&(_e, s)| s == space), "expected ExitSpaceEvent after CanClimb granted");
 }

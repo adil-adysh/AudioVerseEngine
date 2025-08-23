@@ -1,4 +1,5 @@
 use bevy_ecs::prelude::*;
+use bevy_app::Update;
 use engine_core::components::{AudioSourceComponent as CoreAudioSourceComponent, WorldTransformComponent};
 use engine_core::events::{ListenerTransformEvent, PauseSoundEvent, PlaySoundEvent, SetVolumeEvent, StopSoundEvent};
 use engine_core::systems::ExternalAudioSystemEnabled;
@@ -68,8 +69,8 @@ pub fn update_source_positions_system(sys: Res<AudioSystemRes>, q: Query<(Entity
 
 pub fn add_systems_to_engine(engine: &mut engine_core::engine::Engine) {
     engine
-        .variable_schedule_mut()
-        .add_systems((
+        .app_mut()
+        .add_systems(Update, (
             play_sound_system,
             stop_sound_system,
             pause_sound_system,

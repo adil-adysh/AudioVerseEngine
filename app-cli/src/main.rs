@@ -1,4 +1,3 @@
-use bevy_ecs::prelude::*;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::{terminal, ExecutableCommand};
 use glam::Vec3;
@@ -18,9 +17,10 @@ fn main() -> std::io::Result<()> {
 
     // Engine + audio setup
     let mut engine = Engine::new();
-    engine.bootstrap();
-    engine_audio::setup_audio_system(&mut engine.world, 48_000, 2, 128);
-    let sys = engine.world.resource::<engine_audio::AudioSystemRes>().0.clone();
+    // Bevy-App Engine: no explicit bootstrap needed; register external audio systems into the App.
+    engine_audio::setup_audio_system(engine.world_mut(), 48_000, 2, 128);
+    engine_audio::add_systems_to_engine(&mut engine);
+    let sys = engine.world().resource::<engine_audio::AudioSystemRes>().0.clone();
     let mut backend = create_audio_backend().expect("audio backend");
     backend.start(render_fn_for_system(sys.clone())).expect("start backend");
 

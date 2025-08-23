@@ -1,4 +1,5 @@
 use bevy_ecs::prelude::*;
+use bevy_time::Time;
 
 use crate::components::{
     AudioListenerComponent,
@@ -22,6 +23,17 @@ use crate::navmesh as nm;
 /// Simple time step resource for variable-loop systems
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct TimeStep(pub f32);
+
+/// Sets the TimeStep resource each frame from Bevy's Time delta.
+pub fn set_update_timestep_system(
+    mut commands: bevy_ecs::system::Commands,
+    time: Option<Res<Time>>,
+    existing: Option<Res<TimeStep>>,
+) {
+    let dt = time.map(|t| t.delta_seconds()).unwrap_or(0.0);
+    if let Some(r) = existing { let _ = r; /* cannot mutate Res, so overwrite via commands */ }
+    commands.insert_resource(TimeStep(dt));
+}
 
 /// Finds the active listener and publishes its world transform as an event.
 pub fn audio_listener_system(
@@ -119,6 +131,7 @@ pub fn navigation_step_system(
 }
 
 /// Detects when entities enter/exit spaces based on AABB contains() test.
+#[allow(clippy::type_complexity)]
 pub fn space_membership_system(
     mut enter_events: ResMut<Events<EnterSpaceEvent>>,
     mut exit_events: ResMut<Events<ExitSpaceEvent>>,

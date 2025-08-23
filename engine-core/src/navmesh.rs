@@ -36,7 +36,7 @@ impl NavMesh {
         let mut best: Option<(usize,f32)> = None;
         for (i, poly) in self.polys.iter().enumerate() {
             let d = distance_to_poly(poly, p);
-            if best.map_or(true, |(_,bd)| d<bd) { best = Some((i,d)); }
+            if best.is_none_or(|(_,bd)| d<bd) { best = Some((i,d)); }
         }
         best.map(|(i,_)| i)
     }

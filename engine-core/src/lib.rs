@@ -4,11 +4,12 @@
 pub mod components;
 pub mod engine;
 pub mod events;
-pub mod physics;
-pub mod pathfinding;
 pub mod navmesh;
-pub mod transform;
+pub mod pathfinding;
+pub mod physics;
+pub mod plugin;
 pub mod systems;
+pub mod transform;
 #[cfg(feature = "world-loader")]
 pub mod world_loader;
 

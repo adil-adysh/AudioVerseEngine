@@ -24,7 +24,7 @@ fn main() {
       "navmesh": {"polys": [[0.0,0.0,12.0,6.0]]}
     }"#;
 
-  load_world_from_json(&mut engine.world, json.as_bytes()).expect("load world");
+  load_world_from_json(engine.world_mut(), json.as_bytes()).expect("load world");
 
     println!("Loaded world; registries and navmesh present");
 }

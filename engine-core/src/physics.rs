@@ -43,6 +43,7 @@ impl Default for PhysicsResources {
 
 /// Spawn system: create Rapier rigid bodies and colliders for entities that
 /// have a `PhysicsComponent` and don't yet have a `PhysicsHandle`.
+#[allow(clippy::type_complexity)]
 pub fn physics_spawn_system(mut commands: Commands, mut phys: ResMut<PhysicsResources>, query: Query<(Entity, &PhysicsComponent, Option<&PhysicsColliderComponent>, Option<&PhysicsHandle>, &TransformComponent)>) {
     // First pass: collect spawn requests without mutably borrowing `phys`.
     struct SpawnRequest {
@@ -100,10 +101,7 @@ pub fn physics_spawn_system(mut commands: Commands, mut phys: ResMut<PhysicsReso
         let PhysicsResources { rigid_body_set, collider_set, .. } = &mut *phys;
         for (entity, rb, col_opt) in to_insert.into_iter() {
             let rb_handle = rigid_body_set.insert(rb);
-            let col_handle = match col_opt {
-                Some(col) => Some(collider_set.insert_with_parent(col, rb_handle, rigid_body_set)),
-                None => None,
-            };
+            let col_handle = col_opt.map(|col| collider_set.insert_with_parent(col, rb_handle, rigid_body_set));
 
             commands
                 .entity(entity)

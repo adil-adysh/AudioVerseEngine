@@ -184,3 +184,6 @@ impl bevy_ecs::event::Event for WayfindingCueEvent {}
 #[derive(Debug, Clone)]
 pub struct OcclusionEstimateEvent { pub entity: Entity, pub source: Entity, pub occlusion: f32 }
 impl bevy_ecs::event::Event for OcclusionEstimateEvent {}
+
+// Note: we no longer expose a system to update all events; Engine::update calls
+// `update_event_resources(world)` directly at the end of each frame.

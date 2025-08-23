@@ -176,7 +176,7 @@ fn main() {
                 };
                 // send PlaySfx repeatedly for a few seconds so playback is audible
                 let entity = entities[i];
-                let meta = asset_manager::sfx_loader::SfxMetadata {
+                let _meta = asset_manager::sfx_loader::SfxMetadata {
                     channels: backend_channels as u16,
                     sample_rate: backend_sr as u32,
                     loop_points: None,
