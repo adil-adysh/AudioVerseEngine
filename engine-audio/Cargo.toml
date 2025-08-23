@@ -1,0 +1,12 @@
+[package]
+name = "engine-audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = "0.11"
+anyhow = "1.0"
+tracing = "0.1"
+engine-core = { path = "../engine-core" }
+audio-system = { path = "../audio-system" }
+audio-backend = { path = "../audio-backend", package = "audio-backend" }

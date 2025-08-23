@@ -1,0 +1,15 @@
+[package]
+name = "app-windows"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+# Bevy for ECS and app scaffold. Use features minimal to avoid heavy optional deps.
+# Rapier (3D) physics integration for Bevy. Keep optional; used for demo wiring.
+# Use lightweight bevy-ecs crate only to avoid pulling full renderer stack
+bevy_ecs = "0.11"
+ 
+# Local workspace crates
+engine-core = { path = "../engine-core" }
+audio-system = { path = "../audio-system" }

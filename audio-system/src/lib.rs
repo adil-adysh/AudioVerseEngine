@@ -284,6 +284,8 @@ struct SineSource {
     order: u64,
     // spatial properties
     is_spatial: bool,
+    // optional engine entity key for bridging (engine entity index)
+    entity_key: Mutex<Option<u32>>,
     // position and spatial options are updated from non-RT threads; store them in ArcSwapOption to avoid locks on RT path
     position_and_options: ArcSwapOption<(Vec3, Option<SpatialAudioOptions>)>,
     // Optional native source id when a resonance Api is attached.
@@ -305,6 +307,7 @@ impl SineSource {
             priority,
             order,
             is_spatial,
+            entity_key: Mutex::new(None),
             position_and_options: ArcSwapOption::from(Some(Arc::new((position, spatial_options)))),
             native_source_id: Mutex::new(None),
         }
@@ -442,7 +445,8 @@ impl AudioSystem {
             }
             let order = i.order_counter;
             i.order_counter = i.order_counter.wrapping_add(1);
-            let sine = SineSource::new(handle, freq, 0.2_f32, source.category.clone(), source.category.clone(), source.priority, order, source.is_spatial, [0.0,0.0,0.0], source.spatial_options.clone());
+            // Force spatial path on for this demo sine so Spatialiser is exercised
+            let sine = SineSource::new(handle, freq, 0.2_f32, source.category.clone(), source.category.clone(), source.priority, order, true, [0.0,0.0,0.0], source.spatial_options.clone());
             // If a resonance API is attached, create a native source for spatialisation.
             if let Some(ref mut api_box) = *self.resonance_api.lock() {
                 // Create native source
@@ -692,18 +696,70 @@ impl AudioSystem {
     pub fn handle_play_sound_event(sys: &AudioSystem, ev: engine_core::events::PlaySoundEvent) {
         let src = AudioSourceComponent {
             asset_id: "sine:440".to_string(),
-            is_spatial: false,
+            is_spatial: true,
             spatial_options: None,
             priority: 50,
             category: "SFX".to_string(),
         };
-        let _handle = sys.start_playback(&src);
+        let handle = sys.start_playback(&src);
+        // Tag this new source with the originating entity index so we can update its position later
+        if let Some(snapshot) = sys.sources.snapshot() {
+            for s in snapshot.iter() {
+                if s.handle == handle {
+                    *s.entity_key.lock() = Some(ev.entity.index());
+                    break;
+                }
+            }
+        }
         // Lock the audio_world mutex and, if present, update transforms/sources.
         let mut aw_lock = sys.audio_world.lock();
         if let Some(ref mut aw) = aw_lock.as_mut() {
             let entity = ev.entity;
             aw.add_transform(entity.index(), [0.0_f32, 0.0_f32, 0.0_f32], [0.0_f32, 0.0_f32, 0.0_f32, 1.0_f32]);
             aw.add_audio_source(entity.index(), resonance_cxx::RenderingMode::kStereoPanning);
+        }
+    }
+
+    /// Update the listener position in response to ListenerTransformEvent
+    pub fn handle_listener_transform_event(sys: &AudioSystem, ev: engine_core::events::ListenerTransformEvent) {
+        let pos = [ev.matrix.w_axis.x, ev.matrix.w_axis.y, ev.matrix.w_axis.z];
+        sys.set_listener_position(pos);
+    }
+
+    /// Update an entity-linked source position used by the Spatialiser path.
+    /// This is a best-effort O(n) search over active sources; acceptable for small counts.
+    pub fn set_entity_position(&self, entity_index: u32, pos: Vec3) {
+        if let Some(snapshot) = self.sources.snapshot() {
+            for s in snapshot.iter() {
+                if *s.entity_key.lock() == Some(entity_index) {
+                    // preserve options while updating position
+                    let opts = s.position_and_options.load_full().map(|arc| arc.1.clone()).unwrap_or(None);
+                    s.position_and_options.store(Some(Arc::new((pos, opts))));
+                }
+            }
+        }
+    }
+
+    /// Stop any active source associated with the given entity index.
+    pub fn stop_entity(&self, entity_index: u32) {
+        if let Some(snapshot) = self.sources.snapshot() {
+            for s in snapshot.iter() {
+                if *s.entity_key.lock() == Some(entity_index) {
+                    self.mixer.push(MixerCommand::Stop { handle: s.handle });
+                }
+            }
+        }
+    }
+
+    /// Set volume for any active source associated with the given entity index.
+    pub fn set_entity_volume(&self, entity_index: u32, volume: f32) {
+        if let Some(snapshot) = self.sources.snapshot() {
+            for s in snapshot.iter() {
+                if *s.entity_key.lock() == Some(entity_index) {
+                    // update target volume used by render path ramping
+                    *s.target_volume.lock() = volume.max(0.0);
+                }
+            }
         }
     }
 }
