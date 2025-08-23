@@ -26,10 +26,17 @@ pub struct TimeStep(pub f32);
 /// Finds the active listener and publishes its world transform as an event.
 pub fn audio_listener_system(
     mut writer: ResMut<Events<ListenerTransformEvent>>,
-    query: Query<(Entity, &AudioListenerComponent, Option<&WorldTransformComponent>)>,
+    query: Query<(Entity, &AudioListenerComponent, Option<&WorldTransformComponent>, Option<&TransformComponent>)>,
 ) {
-    if let Some((e, _l, Some(wt))) = query.iter().next() {
-        writer.send(ListenerTransformEvent { entity: e, matrix: wt.matrix });
+    if let Some((e, _l, wt_opt, t_opt)) = query.iter().next() {
+        let mat = if let Some(wt) = wt_opt {
+            wt.matrix
+        } else if let Some(t) = t_opt {
+            glam::Mat4::from_scale_rotation_translation(t.scale, t.rotation, t.position)
+        } else {
+            return;
+        };
+        writer.send(ListenerTransformEvent { entity: e, matrix: mat });
     }
 }
 
@@ -138,8 +145,11 @@ pub fn space_membership_system(
 
         // Determine new set.
         let mut new_set = std::collections::HashSet::new();
+        // Geometry-only candidates: spaces that contain current position ignoring medium gating
+        let mut geom_candidates: Vec<Entity> = Vec::new();
         for (space_ent, sc) in space_list.iter() {
             if sc.bounds.contains_with_margin(t.position, enter_margin) {
+                geom_candidates.push(*space_ent);
                 // Gate entering water by CanDive
                 if sc.medium == MediumType::Water && can_dive.is_none() {
                     // Cannot enter water without dive ability
@@ -149,24 +159,10 @@ pub fn space_membership_system(
             }
         }
 
-        // Medium change detection (Air<->Water) before emitting enter/exit
-        let prev_medium = if space_list.iter().any(|(e, sc)| current.contains(e) && sc.medium == MediumType::Water) { MediumType::Water } else { MediumType::Air };
-        let next_medium = if space_list.iter().any(|(e, sc)| new_set.contains(e) && sc.medium == MediumType::Water) { MediumType::Water } else { MediumType::Air };
-        if prev_medium != next_medium {
-            acoustics_events.send(AcousticsEvent::MediumChanged { entity: ent, from: prev_medium, to: next_medium });
-        }
-
-        // Emit Enter events for newly entered spaces.
-        for space_ent in new_set.difference(&current) {
-            enter_events.send(EnterSpaceEvent { entity: ent, space: *space_ent });
-            if let Some((_e, sc)) = space_list.iter().find(|(e, _)| e == space_ent) {
-                if sc.kind == crate::components::SpaceKind::Room {
-                    acoustics_events.send(AcousticsEvent::RoomEntered { entity: ent, room: *space_ent, material: None });
-                }
-            }
-        }
+    // (Enter events and medium change moved after portal/exit resolution)
         // Emit Exit events for spaces no longer inside.
-        let mut to_retain: Vec<Entity> = Vec::new();
+    let mut to_retain: Vec<Entity> = Vec::new();
+    let mut to_add: Vec<Entity> = Vec::new();
         for space_ent in current.difference(&new_set) {
             // Check if exit is permitted: via portal or allowed vertical/hard traversal
             let mut permitted = false;
@@ -209,23 +205,22 @@ pub fn space_membership_system(
                 if let Some(g) = graph.as_ref() {
                     if let Some(list) = g.portals_from.get(space_ent) {
                         for pe in list {
-                            if let Ok((_e, p)) = portals.get(*pe) { if portal_allows(p) { permitted = true; break; } }
+                            if let Ok((_e, p)) = portals.get(*pe) { if portal_allows(p) { permitted = true; to_add.push(p.to); break; } }
                         }
                     }
                     if !permitted {
                         if let Some(list) = g.portals_to.get(space_ent) {
                             for pe in list {
                                 if let Ok((_e, p)) = portals.get(*pe) {
-                                    if p.bidirectional && p.to == *space_ent && portal_allows(p) { permitted = true; break; }
+                                    if p.bidirectional && p.to == *space_ent && portal_allows(p) { permitted = true; to_add.push(p.from); break; }
                                 }
                             }
                         }
                     }
                 } else {
                     for (_e, portal) in portals.iter() {
-                        if (portal.from == *space_ent && portal_allows(portal)) || (portal.bidirectional && portal.to == *space_ent && portal_allows(portal)) {
-                            break;
-                        }
+                        if portal.from == *space_ent && portal_allows(portal) { permitted = true; to_add.push(portal.to); break; }
+                        if portal.bidirectional && portal.to == *space_ent && portal_allows(portal) { permitted = true; to_add.push(portal.from); break; }
                     }
                 }
             }
@@ -243,32 +238,26 @@ pub fn space_membership_system(
                     tags_ok && abil_ok
                 };
                 if let Some(g) = graph.as_ref() {
-                    // spaces we are now inside
-                    for dest in new_set.iter() {
-                        // check portals from source -> dest
-                        if let Some(list) = g.portals_from.get(space_ent) {
-                            for pe in list {
-                                if let Ok((_e, p)) = portals.get(*pe) {
-                                    if p.is_open && p.to == *dest && allow_mask_ok(p) { permitted = true; break; }
-                                }
+                    // Consider all reachable destinations by allowed, open portals from this source.
+                    if let Some(list) = g.portals_from.get(space_ent) {
+                        for pe in list {
+                            if let Ok((_e, p)) = portals.get(*pe) {
+                                if p.is_open && allow_mask_ok(p) { permitted = true; to_add.push(p.to); }
                             }
                         }
-                        if permitted { break; }
-                        // check portals to source (bidirectional) where other end is dest
-                        if let Some(list) = g.portals_to.get(space_ent) {
-                            for pe in list {
-                                if let Ok((_e, p)) = portals.get(*pe) {
-                                    if p.is_open && p.bidirectional && p.from == *dest && allow_mask_ok(p) { permitted = true; break; }
-                                }
+                    }
+                    if let Some(list) = g.portals_to.get(space_ent) {
+                        for pe in list {
+                            if let Ok((_e, p)) = portals.get(*pe) {
+                                if p.is_open && p.bidirectional && allow_mask_ok(p) { permitted = true; to_add.push(p.from); }
                             }
                         }
-                        if permitted { break; }
                     }
                 } else {
                     for (_e, p) in portals.iter() {
                         if p.is_open && allow_mask_ok(p) {
-                            if p.from == *space_ent && new_set.contains(&p.to) { permitted = true; break; }
-                            if p.bidirectional && p.to == *space_ent && new_set.contains(&p.from) { permitted = true; break; }
+                            if p.from == *space_ent { permitted = true; to_add.push(p.to); }
+                            if p.bidirectional && p.to == *space_ent { permitted = true; to_add.push(p.from); }
                         }
                     }
                 }
@@ -299,7 +288,26 @@ pub fn space_membership_system(
             }
         }
         // Retain membership if exit not permitted (apply after iteration to avoid aliasing)
-        for s in to_retain { new_set.insert(s); }
+    for s in to_retain { new_set.insert(s); }
+    // Add any destination spaces reached via permitted portal crossing, even if medium gating would have filtered them
+    for s in to_add { new_set.insert(s); }
+
+        // Medium change detection (Air<->Water) after finalizing membership
+        let prev_medium = if space_list.iter().any(|(e, sc)| current.contains(e) && sc.medium == MediumType::Water) { MediumType::Water } else { MediumType::Air };
+        let next_medium = if space_list.iter().any(|(e, sc)| new_set.contains(e) && sc.medium == MediumType::Water) { MediumType::Water } else { MediumType::Air };
+        if prev_medium != next_medium {
+            acoustics_events.send(AcousticsEvent::MediumChanged { entity: ent, from: prev_medium, to: next_medium });
+        }
+
+        // Emit Enter events for newly entered spaces using finalized membership set
+        for space_ent in new_set.difference(&current) {
+            enter_events.send(EnterSpaceEvent { entity: ent, space: *space_ent });
+            if let Some((_e, sc)) = space_list.iter().find(|(e, _)| e == space_ent) {
+                if sc.kind == crate::components::SpaceKind::Room {
+                    acoustics_events.send(AcousticsEvent::RoomEntered { entity: ent, room: *space_ent, material: None });
+                }
+            }
+        }
 
         // Write back membership component.
         if let Some(mut inside) = inside_opt {

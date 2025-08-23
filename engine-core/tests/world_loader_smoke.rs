@@ -3,6 +3,7 @@
 use bevy_ecs::prelude::*;
 use engine_core::world_loader::load_world_from_json;
 use engine_core::components::*;
+use engine_core::navmesh;
 
 #[test]
 fn load_world_minimal_and_validate() {
@@ -24,8 +25,8 @@ fn load_world_minimal_and_validate() {
     // Seed a player entity with components that might be used elsewhere
     let player = world
         .spawn((
-            TransformComponent::from_position(glam::Vec3::new(1.0, 1.0, 1.0)),
-            TraversalMask { mask: TraversalMask::MASK_ALL },
+            TransformComponent { position: glam::vec3(1.0, 1.0, 1.0), rotation: glam::Quat::IDENTITY, scale: glam::Vec3::ONE, parent: None },
+            TraversalMask { mask: u64::MAX },
             Abilities { mask: 0 },
         ))
         .id();
@@ -37,7 +38,7 @@ fn load_world_minimal_and_validate() {
     // Check resources were inserted
     assert!(world.contains_resource::<TagRegistry>());
     assert!(world.contains_resource::<AbilityRegistry>());
-    assert!(world.contains_resource::<crate::navmesh::NavMesh>());
+    assert!(world.contains_resource::<navmesh::NavMesh>());
 
     // Ensure a portal entity with our settings exists
     let mut found = false;
@@ -47,8 +48,10 @@ fn load_world_minimal_and_validate() {
     assert!(found, "expected portal with cost 2.0 created");
 
     // Grant dive and ensure mask updated (registry should have an entry)
-    let abil_reg = world.resource::<AbilityRegistry>();
-    let dive_mask = abil_reg.mask_for(["dive"].into_iter());
+    let dive_mask = {
+        let mut abil_reg = world.resource_mut::<AbilityRegistry>();
+        abil_reg.mask_for(["dive"].into_iter())
+    };
     world.entity_mut(player).insert(Abilities { mask: dive_mask });
     let ab = world.get::<Abilities>(player).unwrap();
     assert_eq!(ab.mask, dive_mask);

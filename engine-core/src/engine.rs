@@ -54,26 +54,33 @@ impl Engine {
     // Ensure physics collision event resource exists for systems that emit it
     Self::init_physics_events(&mut self.world);
 
-    // add transforms, navigation step, and physics systems to fixed schedule
-    self.fixed_schedule.add_systems((physics_transform_system, navigation_step_system, physics_spawn_system, physics_step_system));
+    // add navigation command apply, transforms, navigation step, and physics systems to fixed schedule
+    // chain to enforce order within the schedule
+    self.fixed_schedule.add_systems((
+        navigation_system,
+        physics_transform_system,
+        navigation_step_system,
+        physics_spawn_system,
+        physics_step_system,
+    ).chain());
 
     // ensure SpaceGraph resource exists and indexer runs each frame before membership
     if self.world.get_resource::<crate::components::SpaceGraph>().is_none() {
         self.world.insert_resource(crate::components::SpaceGraph::default());
     }
 
-    // variable schedule: navigation setup, listener, render transforms, audio, navmesh cues, space membership
+    // variable schedule: render transforms first, then listener, audio, navmesh cues, space membership
+    // chain to guarantee execution order
     self.variable_schedule.add_systems((
-        navigation_system,
-        audio_listener_system,
         render_transform_system,
+        audio_listener_system,
         audio_system,
-    crate::transform::despawn_cleanup_system,
+        crate::transform::despawn_cleanup_system,
         crate::systems::space_graph_index_system,
         crate::systems::navmesh_boundary_cues_system,
         crate::systems::navmesh_wayfinding_cues_system,
         space_membership_system,
-    ));
+    ).chain());
     }
 
     /// Expose mutable access to fixed schedule so callers can register systems.
