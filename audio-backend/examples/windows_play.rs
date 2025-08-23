@@ -4,10 +4,7 @@ use std::time::Duration;
 fn main() -> Result<(), audio_backend::BackendError> {
     // Parse optional CLI args: <duration_ms> <freq>
     let mut args = std::env::args().skip(1);
-    let duration_ms: u64 = args
-        .next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(2000);
+    let duration_ms: u64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(2000);
     let freq: u32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(440);
 
     // Create our audio-system with a mixer capacity and typical params.

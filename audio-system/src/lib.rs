@@ -7,6 +7,25 @@ use arc_swap::ArcSwapOption;
 use crossbeam::queue::ArrayQueue;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+
+/// Minimal oddio engine scaffold. Will be replaced with full oddio graph wiring.
+#[allow(dead_code)]
+struct OddioEngine {
+    sample_rate: u32,
+    channels: u16,
+}
+
+impl OddioEngine {
+    fn new(sample_rate: u32, channels: u16) -> Self {
+        Self { sample_rate, channels }
+    }
+
+    /// Render into the provided buffer. For now this is a no-op.
+    #[allow(dead_code)]
+    fn render(&self, _out: &mut [f32], _frames: usize) {
+        // TODO: implement oddio graph mixing
+    }
+}
 use std::f32::consts::PI;
 use std::sync::Arc;
 
@@ -147,6 +166,7 @@ pub struct AudioSystem {
     inner: Arc<Mutex<AudioSystemInner>>,
     mixer: Arc<MixerQueue>,
     sources: Arc<ActiveSources>,
+    oddio: Arc<Mutex<Option<Arc<OddioEngine>>>>,
 }
 
 struct AudioSystemInner {
@@ -208,11 +228,15 @@ impl ActiveSources {
     }
 }
 
+#[allow(dead_code)]
 struct SineSource {
     handle: u32,
     freq: f32,
     phase: Mutex<f32>,
     volume: Mutex<f32>,
+    target_volume: Mutex<f32>,
+    attack_ms: u32,
+    release_ms: u32,
     category: String,
     bus: String,
     priority: u8,
@@ -226,6 +250,9 @@ impl SineSource {
             freq,
             phase: Mutex::new(0.0),
             volume: Mutex::new(volume),
+            target_volume: Mutex::new(volume),
+            attack_ms: 5,
+            release_ms: 50,
             category,
             bus,
             priority,
@@ -235,15 +262,36 @@ impl SineSource {
 
     fn render(&self, out: &mut [f32], sample_rate: u32) {
         let mut p = self.phase.lock();
-        let v = *self.volume.lock();
-        let step = 2.0 * PI * self.freq / sample_rate as f32;
+        // Read current and target volumes once
+        let mut cur_v = *self.volume.lock();
+        let target_v = *self.target_volume.lock();
+        let step_phase = 2.0 * PI * self.freq / sample_rate as f32;
+
+        // Determine ramp frames (per-sample) based on attack/release
+        // We'll compute per-sample increment: (target - cur) / frames_needed
+        let frames_needed = if target_v > cur_v {
+            // attack
+            (self.attack_ms as f32 * sample_rate as f32 / 1000.0).max(1.0)
+        } else {
+            // release
+            (self.release_ms as f32 * sample_rate as f32 / 1000.0).max(1.0)
+        };
+        let incr = (target_v - cur_v) / frames_needed;
+
         for s in out.iter_mut() {
-            *s += (*p).sin() * v;
-            *p += step;
+            *s += (*p).sin() * cur_v;
+            *p += step_phase;
             if *p > 2.0 * PI {
                 *p -= 2.0 * PI;
             }
+            // step current volume
+            cur_v += incr;
+            // clamp to [0, 1]
+            cur_v = cur_v.clamp(0.0, 1.0);
         }
+
+        // store back current volume
+        *self.volume.lock() = cur_v;
     }
 }
 
@@ -255,6 +303,7 @@ impl AudioSystem {
             inner: Arc::new(Mutex::new(inner)),
             mixer: Arc::new(mixer),
             sources: Arc::new(ActiveSources::new()),
+            oddio: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -284,7 +333,11 @@ impl AudioSystem {
     /// Initialize the system; set up oddio endpoint and mixer graph.
     /// For the MVP we don't create the platform endpoint, only provide a render callback simulation.
     pub fn initialize(&self) {
-        // placeholder
+    // Initialize optional oddio engine scaffold using current mixer timing.
+    let timing = self.mixer.get_timing_inherent();
+    let engine = OddioEngine::new(timing.sample_rate, 2); // default stereo
+    let mut o = self.oddio.lock();
+    *o = Some(Arc::new(engine));
     }
 
     /// Start playback for an entity with an AudioSourceComponent.
@@ -404,11 +457,12 @@ impl AudioSystem {
                 MixerCommand::Stop { handle } => tracing::debug!(handle, "RT: Stop"),
                 MixerCommand::SetVolume { handle, volume } => {
                     tracing::debug!(handle, volume, "RT: SetVolume");
-                    // Apply to active sine sources (prototype behavior)
+                    // Apply to active sine sources (prototype behavior) via target volume (smooth)
                     if let Some(snapshot) = self.sources.snapshot() {
                         for src in snapshot.iter() {
                             if src.handle == handle {
-                                *src.volume.lock() = volume;
+                                // set target volume with a small attack
+                                *src.target_volume.lock() = volume;
                             }
                         }
                     }
@@ -569,7 +623,7 @@ mod tests {
         sys.set_bus_limit("SFX", 1);
         let s1 = AudioSourceComponent { asset_id: "sine:440".to_string(), is_spatial: false, spatial_options: None, priority: 50, category: "SFX".to_string() };
         let s2 = AudioSourceComponent { asset_id: "sine:550".to_string(), is_spatial: false, spatial_options: None, priority: 50, category: "SFX".to_string() };
-        let h1 = sys.start_playback(&s1);
+    let _h1 = sys.start_playback(&s1);
         let h2 = sys.start_playback(&s2);
         // only one should remain in SFX
         let snapshot = sys.sources.snapshot().unwrap();
