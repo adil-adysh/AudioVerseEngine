@@ -11,6 +11,7 @@ cxx = "1.0.168"
 cpal = "0.15"
 serial_test = "2.0"
 resonance-audio-engine = { path = "../resonance-audio-engine" }
+audio-system = { path = "../audio-system" }
 
 [features]
 real-audio-tests = []

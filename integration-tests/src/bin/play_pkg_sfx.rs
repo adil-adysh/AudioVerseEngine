@@ -1,6 +1,6 @@
 use asset_manager::asset_pkg::AssetPkg;
 use audio_backend::create_audio_backend;
-use resonance_audio_engine::Renderer;
+use audio_system::AudioWorld;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -42,25 +42,34 @@ fn main() {
     let frames_per_buffer = if backend_buf == 0 { 256 } else { backend_buf };
 
     println!("Using backend: sample_rate={}, channels={}, frames_per_buffer={}", backend_sr, backend_channels, frames_per_buffer);
-    let renderer = Arc::new(Mutex::new(Renderer::new(backend_sr as i32, backend_channels, frames_per_buffer)));
 
-    // create slots for each sfx we will play
-    let mut slots = Vec::new();
-    for _ in 0..sfx_names.len() {
-        let slot = { let mut r = renderer.lock().unwrap(); r.alloc_slot().expect("no slot") };
-        { let r = renderer.lock().unwrap(); let sender = r.command_sender(); sender.push(resonance_audio_engine::renderer::Command::CreateSource { slot, mode: resonance_cxx::RenderingMode::kStereoPanning }).ok(); }
-        slots.push(slot);
+    // Create native Api + AudioWorld and wrap in Arc<Mutex<..>> for sharing with render thread
+    let ra_api = match resonance_cxx::Api::new(backend_channels, frames_per_buffer, backend_sr as i32) {
+        Some(a) => a,
+        None => { eprintln!("create resonance Api failed"); return; }
+    };
+    let audio_world = Arc::new(Mutex::new(AudioWorld::new(ra_api)));
+
+    // create entity ids and add audio sources for each sfx
+    let mut entities: Vec<u32> = Vec::new();
+    for i in 0..sfx_names.len() {
+        let entity = (i as u32) + 1;
+        { let mut aw = audio_world.lock().unwrap(); aw.add_audio_source(entity, resonance_cxx::RenderingMode::kStereoPanning); }
+        entities.push(entity);
     }
+    // prepare world for RT use
+    { let mut aw = audio_world.lock().unwrap(); aw.prepare_for_rt(); }
 
     // render callback with simple diagnostic: set `saw_audio` when non-zero samples produced
     let saw_audio = Arc::new(AtomicBool::new(false));
     let saw_audio_cb = Arc::clone(&saw_audio);
-    let renderer_for_render = Arc::clone(&renderer);
-    let render_cb = Arc::new(move |buf: &mut [f32], _sr: u32, frames_n: usize| {
-        if let Ok(mut r) = renderer_for_render.try_lock() {
-            let ok = r.process_output_interleaved(buf, frames_n);
+    let audio_world_for_render = Arc::clone(&audio_world);
+    let render_cb = Arc::new(move |buf: &mut [f32], sample_rate: u32, frames_n: usize| {
+        let _ = sample_rate;
+        if let Ok(mut aw) = audio_world_for_render.try_lock() {
+            // Let the native API fill the buffer using previously provided source buffers
+            let ok = aw.api_fill_interleaved_f32(backend_channels, frames_n, buf);
             if ok {
-                // detect non-zero content
                 for &s in buf.iter() {
                     if s.abs() > 1e-6 {
                         saw_audio_cb.store(true, Ordering::Relaxed);
@@ -113,28 +122,25 @@ fn main() {
 
                 let _frames_for_buffer = if backend_channels > 0 { samples.len()/backend_channels } else { 0 };
                 // send PlaySfx repeatedly for a few seconds so playback is audible
-                let slot = slots[i];
-                let sender = { let r = renderer.lock().unwrap(); r.command_sender() };
+                let entity = entities[i];
                 let meta = asset_manager::sfx_loader::SfxMetadata { channels: backend_channels as u16, sample_rate: backend_sr as u32, loop_points: None };
-                let sfx_arc = std::sync::Arc::new(samples.clone());
                 let play_duration = Duration::from_secs(6);
+                let mut playhead_frames = 0usize;
+                let total_frames = samples.len() / backend_channels.max(1);
                 let start = std::time::Instant::now();
                 while start.elapsed() < play_duration {
-                    let sfx_buffer = resonance_audio_engine::renderer::SfxBuffer { samples: sfx_arc.clone(), meta: meta.clone() };
-                    sender.push(resonance_audio_engine::renderer::Command::PlaySfx { slot, buffer: sfx_buffer, gain: 1.0, pos: None }).ok();
-                    // inspect renderer voice state
-                    if let Ok(r) = renderer.try_lock() {
-                        // count active voices
-                        let active_count = r.voices.iter().filter(|v| v.active.load(std::sync::atomic::Ordering::Acquire)).count();
-                        println!("Renderer active voices: {}", active_count);
-                        // if this slot has sfx, print its length
-                        if let Some(v) = r.voices.get(slot) {
-                            if let Some(ref s) = v.sfx {
-                                println!("Slot {} sfx len: {}", slot, s.len());
-                            }
-                        }
+                    // compute chunk for this iteration
+                    let frames_to_send = (frames_per_buffer).min(total_frames.saturating_sub(playhead_frames));
+                    let start_sample = playhead_frames * backend_channels;
+                    let end_sample = start_sample + frames_to_send * backend_channels;
+                    if start_sample < end_sample && end_sample <= samples.len() {
+                        let chunk = &samples[start_sample..end_sample];
+                        { let mut aw = audio_world.lock().unwrap(); aw.feed_audio(entity, chunk, backend_channels, frames_to_send); }
+                        playhead_frames = playhead_frames.saturating_add(frames_to_send);
+                    } else {
+                        // no more frames; break early
+                        break;
                     }
-                    // wait a bit between pushes so playback overlaps
                     sleep(Duration::from_millis(300));
                 }
             }
