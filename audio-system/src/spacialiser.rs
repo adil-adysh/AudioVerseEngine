@@ -8,7 +8,9 @@ pub struct Spatialiser {
 
 impl Spatialiser {
     pub fn new() -> Self {
-        Self { listener_pos: [0.0, 0.0, 0.0] }
+        Self {
+            listener_pos: [0.0, 0.0, 0.0],
+        }
     }
 
     pub fn set_listener_position(&mut self, pos: Vec3) {
@@ -21,7 +23,9 @@ impl Spatialiser {
     /// mapped into [-1,1] then converted to left/right gains.
     pub fn process_mono_to_stereo(&self, mono: &[f32], stereo: &mut [f32], pos: Vec3, gain: f32) {
         let frames = mono.len();
-        if stereo.len() < frames * 2 { return; }
+        if stereo.len() < frames * 2 {
+            return;
+        }
         // relative X: positive => source is to the right of listener -> pan right
         let rel_x = pos[0] - self.listener_pos[0];
         // scale down the influence so small offsets don't fully pan; clamp to [-1,1]
@@ -31,8 +35,8 @@ impl Spatialiser {
         let right_gain = ((1.0 + pan) * 0.5) * gain;
         for i in 0..frames {
             let s = mono[i];
-            stereo[2*i] = s * left_gain;
-            stereo[2*i+1] = s * right_gain;
+            stereo[2 * i] = s * left_gain;
+            stereo[2 * i + 1] = s * right_gain;
         }
     }
 }
