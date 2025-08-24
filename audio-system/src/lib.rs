@@ -693,7 +693,7 @@ impl AudioSystem {
     /// application/engine can register a Bevy system that reads
     /// `Events<engine_core::events::PlaySoundEvent>` and calls this helper
     /// for each event without forcing `audio-system` to depend on Bevy.
-    pub fn handle_play_sound_event(sys: &AudioSystem, ev: engine_core::events::PlaySoundEvent) {
+    pub fn handle_play_sound_event(sys: &AudioSystem, ev: engine_core::audio::PlaySoundEvent) {
         let src = AudioSourceComponent {
             asset_id: "sine:440".to_string(),
             is_spatial: true,
@@ -721,7 +721,7 @@ impl AudioSystem {
     }
 
     /// Update the listener position in response to ListenerTransformEvent
-    pub fn handle_listener_transform_event(sys: &AudioSystem, ev: engine_core::events::ListenerTransformEvent) {
+    pub fn handle_listener_transform_event(sys: &AudioSystem, ev: engine_core::audio::ListenerTransformEvent) {
         let pos = [ev.matrix.w_axis.x, ev.matrix.w_axis.y, ev.matrix.w_axis.z];
         sys.set_listener_position(pos);
     }

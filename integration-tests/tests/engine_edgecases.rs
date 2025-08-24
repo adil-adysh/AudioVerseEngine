@@ -1,4 +1,4 @@
-use engine_core::{Engine, components::*, events as ev};
+use engine_core::{Engine, components::*, audio as ev};
 use glam::{vec3, Vec3};
 
 fn step(engine: &mut Engine, seconds: f32, frames: usize) { for _ in 0..frames { engine.update(seconds / frames as f32); } }

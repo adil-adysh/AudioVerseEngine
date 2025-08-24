@@ -9,6 +9,6 @@ path = "src/lib.rs"
 
 [dependencies]
 symphonia = { version = "0.5.4", features = ["all"] }
-rubato = "0.12"
+rubato = "0.16"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }

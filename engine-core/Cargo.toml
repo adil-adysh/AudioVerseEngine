@@ -4,43 +4,32 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy_ecs = "0.11"
-bevy_app = "0.11"
-bevy_time = "0.11"
-thiserror = "1.0"
-glam = "0.23"
-# audio-system integration should be wired by the app to avoid cyclic
-# path-dependencies; keep engine-core independent.
-# Physics: Rapier (3D). Pin a recent stable version.
-rapier3d = "0.23"
-parry3d = "0.23"
+# Bevy core ECS & scheduling (no renderer)
+bevy_ecs = "0.16"
+bevy_app = "0.16"
+bevy_time = "0.16"
+
+# Math & errors - prefer bevy_math so types (Vec3) match other bevy crates
+bevy_math = "0.16"
+bevy_input = "0.16"
+bevy_transform = "0.16"
+bevy_asset = "0.16"
+bevy_audio = "0.16"
+thiserror = "2.0"
+
+# World loading
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+anyhow = { version = "1.0", optional = true }
+
+# Navigation & raycast (always available)
+# NOTE: this crate is intentionally a small placeholder in this workspace; use the
+# published placeholder version so cargo can resolve it during workspace checks.
+bevy_navmesh = "0.0.1"
+bevy_rapier3d = "0.31.0"
 
 [features]
-default = ["bevy-extras"]
-world-loader = ["serde", "serde_json", "anyhow"]
-# Optional Bevy ecosystem extras (navigation mesh + raycast). Off by default to keep core light.
-# When enabled, you must also enable matching Bevy version in downstream app.
-bevy-extras = ["dep:bevy_navmesh", "dep:bevy_mod_raycast"]
-
-
-[dependencies.serde]
-version = "1.0"
-features = ["derive"]
-optional = true
-
-[dependencies.serde_json]
-version = "1.0"
-optional = true
-
-[dependencies.anyhow]
-version = "1.0"
-optional = true
-
-# Optional extras (only compiled when feature "bevy-extras" is enabled)
-[dependencies.bevy_navmesh]
-version = "*"
-optional = true
-
-[dependencies.bevy_mod_raycast]
-version = "*"
-optional = true
+# Optional feature to enable world loading examples/tests and their dependencies.
+# When enabled, the `world-loader` feature pulls in serde/serde_json/anyhow.
+world-loader = ["anyhow"]
+full_engine = []

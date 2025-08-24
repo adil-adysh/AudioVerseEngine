@@ -15,13 +15,13 @@ symphonia = { version = "0.5.4", optional = true, features = ["all"] }
 ringbuf = { version = "0.4", optional = true }
 
 # high-quality resampling dependency
-rubato = "0.12"
+rubato = "0.16"
 
 # utilities used by the package/loader implementation
-memmap2 = "0.5"
-lru = "0.8"
+memmap2 = "0.9"
+lru = "0.16"
 sha2 = "0.10"
-thiserror = "1.0"
+thiserror = "2.0"
 tempdir = "0.3.7"
 
 [features]
@@ -32,4 +32,4 @@ default = []
 streaming = ["symphonia", "ringbuf"]
 
 [dev-dependencies]
-tempfile = "3.5"
+tempfile = "3.21"

@@ -8,7 +8,7 @@ struct TestEventSink {
 
 fn drain_enter_events(
     mut sink: ResMut<TestEventSink>,
-    mut enter: ResMut<Events<engine_core::events::EnterSpaceEvent>>,
+    mut enter: ResMut<Events<engine_core::audio::EnterSpaceEvent>>,
 ) {
     let mut v = Vec::new();
     enter.drain().for_each(|e| v.push(e));

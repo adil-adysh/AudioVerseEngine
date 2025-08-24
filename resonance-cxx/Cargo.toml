@@ -7,7 +7,7 @@ description = "Safe Rust bindings to vraudio::ResonanceAudioApi using cxx"
 
 [dependencies]
 cxx = "1.0.168"
-glam = "0.27"
+glam = "0.30"
 
 [build-dependencies]
 cxx-build = "1.0.168"

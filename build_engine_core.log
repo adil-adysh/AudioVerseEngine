@@ -1,0 +1,159 @@
+   Compiling engine-core v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\engine-core)
+warning: unused import: `components::*`
+  --> engine-core\src\lib.rs:24:5
+   |
+24 | use components::*;
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: field `sounds` is never read
+  --> engine-core\src\lib.rs:65:17
+   |
+64 |             struct AudioAssetsPlaceholder {
+   |                    ---------------------- field in this struct
+65 |                 sounds: HashMap<String, ()>,
+   |                 ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: struct `Player` is never constructed
+  --> engine-core\src\components.rs:10:12
+   |
+10 | pub struct Player;
+   |            ^^^^^^
+
+warning: struct `MovementSpeed` is never constructed
+  --> engine-core\src\components.rs:13:12
+   |
+13 | pub struct MovementSpeed(pub f32);
+   |            ^^^^^^^^^^^^^
+
+warning: struct `MoveDirection` is never constructed
+  --> engine-core\src\components.rs:16:12
+   |
+16 | pub struct MoveDirection(pub Vec3);
+   |            ^^^^^^^^^^^^^
+
+warning: struct `HasCollider` is never constructed
+  --> engine-core\src\components.rs:19:12
+   |
+19 | pub struct HasCollider; // Marker to easily find entities with a collider
+   |            ^^^^^^^^^^^
+
+warning: struct `Velocity` is never constructed
+  --> engine-core\src\components.rs:23:12
+   |
+23 | pub struct Velocity(pub Vec3);
+   |            ^^^^^^^^
+
+warning: struct `ExternalForce` is never constructed
+  --> engine-core\src\components.rs:25:12
+   |
+25 | pub struct ExternalForce(pub Vec3);
+   |            ^^^^^^^^^^^^^
+
+warning: struct `SoundEmitter` is never constructed
+  --> engine-core\src\components.rs:30:12
+   |
+30 | pub struct SoundEmitter {
+   |            ^^^^^^^^^^^^
+
+warning: struct `SoundMaterial` is never constructed
+  --> engine-core\src\components.rs:37:12
+   |
+37 | pub struct SoundMaterial {
+   |            ^^^^^^^^^^^^^
+
+warning: struct `CurrentMedium` is never constructed
+  --> engine-core\src\components.rs:42:12
+   |
+42 | pub struct CurrentMedium {
+   |            ^^^^^^^^^^^^^
+
+warning: struct `CurrentAcousticSpace` is never constructed
+  --> engine-core\src\components.rs:47:12
+   |
+47 | pub struct CurrentAcousticSpace {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `MediumType` is never used
+  --> engine-core\src\components.rs:52:10
+   |
+52 | pub enum MediumType {
+   |          ^^^^^^^^^^
+
+warning: struct `AcousticVolume` is never constructed
+  --> engine-core\src\components.rs:68:12
+   |
+68 | pub struct AcousticVolume {
+   |            ^^^^^^^^^^^^^^
+
+warning: struct `MediumVolume` is never constructed
+  --> engine-core\src\components.rs:74:12
+   |
+74 | pub struct MediumVolume {
+   |            ^^^^^^^^^^^^
+
+warning: enum `VolumeShape` is never used
+  --> engine-core\src\components.rs:80:10
+   |
+80 | pub enum VolumeShape {
+   |          ^^^^^^^^^^^
+
+warning: struct `Aabb` is never constructed
+  --> engine-core\src\components.rs:88:12
+   |
+88 | pub struct Aabb {
+   |            ^^^^
+
+warning: struct `Sphere` is never constructed
+  --> engine-core\src\components.rs:94:12
+   |
+94 | pub struct Sphere {
+   |            ^^^^^^
+
+warning: method `contains` is never used
+   --> engine-core\src\components.rs:100:12
+    |
+99  | impl Aabb {
+    | --------- method in this implementation
+100 |     pub fn contains(&self, point: Vec3) -> bool {
+    |            ^^^^^^^^
+
+warning: method `contains` is never used
+   --> engine-core\src\components.rs:108:12
+    |
+107 | impl Sphere {
+    | ----------- method in this implementation
+108 |     pub fn contains(&self, point: Vec3) -> bool {
+    |            ^^^^^^^^
+
+warning: method `contains` is never used
+   --> engine-core\src\components.rs:114:12
+    |
+113 | impl VolumeShape {
+    | ---------------- method in this implementation
+114 |     pub fn contains(&self, point: Vec3) -> bool {
+    |            ^^^^^^^^
+
+warning: struct `Portal` is never constructed
+   --> engine-core\src\components.rs:125:12
+    |
+125 | pub struct Portal {
+    |            ^^^^^^
+
+warning: struct `Teleporting` is never constructed
+   --> engine-core\src\components.rs:130:12
+    |
+130 | pub struct Teleporting {
+    |            ^^^^^^^^^^^
+
+warning: struct `WorldParent` is never constructed
+   --> engine-core\src\components.rs:138:12
+    |
+138 | pub struct WorldParent(pub String);
+    |            ^^^^^^^^^^^
+
+warning: `engine-core` (lib) generated 24 warnings (run `cargo fix --lib -p engine-core` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.59s

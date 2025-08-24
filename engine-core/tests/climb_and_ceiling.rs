@@ -9,7 +9,7 @@ struct TestEventSink {
 
 fn drain_exit_events(
     mut sink: ResMut<TestEventSink>,
-    mut exit: ResMut<Events<engine_core::events::ExitSpaceEvent>>,
+    mut exit: ResMut<Events<engine_core::audio::ExitSpaceEvent>>,
 ) {
     let mut v = Vec::new();
     exit.drain().for_each(|e| v.push(e));

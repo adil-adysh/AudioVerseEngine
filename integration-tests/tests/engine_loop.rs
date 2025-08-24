@@ -1,6 +1,6 @@
 use bevy_ecs::prelude::*;
 use engine_core::Engine;
-use engine_core::events as ev;
+use engine_core::audio as ev;
 
 /// Contract: Engine::new initializes all event resources; bootstrap wires default systems;
 /// update(dt) should tick fixed schedule 0..=max_substeps times and variable once.
@@ -64,8 +64,8 @@ fn emits_position_changed_on_move() {
     engine.update(0.016);
 
     // Read events directly
-    let mut reader = bevy_ecs::event::ManualEventReader::<engine_core::events::PositionChangedEvent>::default();
-    let events = engine.world.resource::<bevy_ecs::event::Events<engine_core::events::PositionChangedEvent>>();
+    let mut reader = bevy_ecs::event::ManualEventReader::<engine_core::audio::PositionChangedEvent>::default();
+    let events = engine.world.resource::<bevy_ecs::event::Events<engine_core::audio::PositionChangedEvent>>();
     let count = reader.iter(&events).count();
     assert!(count >= 1, "expected at least one PositionChangedEvent after move");
 }

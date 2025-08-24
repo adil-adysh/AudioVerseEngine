@@ -9,8 +9,8 @@ struct TestEventSink {
 
 fn drain_space_events(
     mut sink: ResMut<TestEventSink>,
-    mut enter: ResMut<Events<engine_core::events::EnterSpaceEvent>>,
-    mut exit: ResMut<Events<engine_core::events::ExitSpaceEvent>>,
+    mut enter: ResMut<Events<engine_core::audio::EnterSpaceEvent>>,
+    mut exit: ResMut<Events<engine_core::audio::ExitSpaceEvent>>,
 ) {
     let mut v = Vec::new();
     enter.drain().for_each(|e| v.push(e));

@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 use engine_core::components::{
     AudioSourceComponent as CoreAudioSourceComponent, WorldTransformComponent,
 };
-use engine_core::events::{
+use engine_core::audio::{
     ListenerTransformEvent, PauseSoundEvent, PlaySoundEvent, SetVolumeEvent, StopSoundEvent,
 };
 use engine_core::systems::ExternalAudioSystemEnabled;

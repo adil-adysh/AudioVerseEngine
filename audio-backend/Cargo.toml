@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cpal = "0.15"
-arc-swap = "1.6"
+cpal = "0.16"
+arc-swap = "1.7"
 crossbeam-channel = "0.5"
 
 [dev-dependencies]
