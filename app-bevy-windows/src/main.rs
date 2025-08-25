@@ -7,20 +7,21 @@ use engine_core::{AudioAssets, Player, MoveDirection, SoundEmitter};
 
 fn main() {
     // Create a minimal Bevy app with default plugins sufficient to exercise systems
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins((GamePlugin,))
-    .add_systems(Startup, spawn_test)
+    let mut app = App::new();
+    app.add_plugins(DefaultPlugins);
+    app.add_plugins((GamePlugin,));
+
+    // Conditionally install the voxel world plugin when the feature is enabled.
+    // Use compile-time cfg to avoid referencing the crate when it's not present.
+    // Register startup systems and main update systems.
+    app.add_systems(Startup, spawn_test);
     // Bevy 0.16 uses the `add_systems` API with stages.
-    .add_systems(Update, movement_input_system)
-        .run();
+    app.add_systems(Update, movement_input_system);
+
+    app.run();
 }
 
-fn spawn_test(
-    mut audio_assets: ResMut<AudioAssets>,
-    asset_server: Res<AssetServer>,
-    mut commands: Commands,
-) {
+fn spawn_test(mut commands: Commands) {
     // Audio assets are populated by the engine `WorldPlugin` on startup.
     // If needed, application-level assets can be loaded here and inserted
     // into `AudioAssets`. We rely on the engine to have already added
@@ -29,6 +30,7 @@ fn spawn_test(
     // Spawn a player entity with a movement component and a sound emitter.
     commands.spawn((Player, MoveDirection(bevy::math::Vec3::ZERO), SoundEmitter { sound_id: "preview".to_string(), volume: 1.0, velocity: bevy::math::Vec3::ZERO }));
 }
+
 
 // Tracks whether the player was moving in the previous frame.
 #[derive(Resource, Default)]

@@ -1,0 +1,33 @@
+(
+    name: "default",
+    portals: [
+        (
+            destination: (0.0, 5.0, 0.0),
+            aabb_min: (-1.0, 0.0, -1.0),
+            aabb_max: (1.0, 2.0, 1.0),
+        ),
+    ],
+    zones: [
+        (
+            name: "lobby",
+            aabb_min: (-10.0, 0.0, -10.0),
+            aabb_max: (10.0, 5.0, 10.0),
+        ),
+    ],
+    acoustic_volumes: [
+        (
+            name: "reverb_chamber",
+            reverb_strength: 0.8,
+            aabb_min: (2.0, 0.0, 2.0),
+            aabb_max: (6.0, 4.0, 6.0),
+        ),
+    ],
+    ambient_sounds: [
+        (
+            sound_id: "ambient_wind",
+            volume: 0.6,
+            position: (0.0, 2.0, 0.0),
+            looped: true,
+        ),
+    ],
+)

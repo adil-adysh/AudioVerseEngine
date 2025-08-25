@@ -1,6 +1,8 @@
 ## Purpose
 
-Short, actionable guidance for AI coding agents who will edit or add code in AudioVerseEngine. Keep notes precise and example-driven; prefer file paths and exact commands.
+Concise, practical instructions for AI coding agents and contributors working on AudioVerseEngine after the migration to Bevy.
+
+Keep guidance lightweight and focused on `engine-core` (audio, ECS systems), `asset-manager` (audio formats), and application crates (visualization/debug). Prefer RON for editable world descriptors and keep rendering optional.
 
 ## What this repo is (1 line)
 
@@ -55,3 +57,9 @@ Audio-first game engine: Rust core + C++ Resonance Audio bridge + optional Flutt
     - `docs/resonance_cxx_guidance.md` — step-by-step pattern and checklist for adding cxx bridge wrappers (new guidance).
 
 Use these docs to understand where to place new code and how to map C++ APIs into Rust crates.
+
+---
+
+## (Bevy migration) Short guidance
+
+Note: this repo migrated to use Bevy for ECS, asset management, and time. Keep `engine-core` renderer-agnostic and use RON world descriptors under `assets/worlds/` for audio-driven spatial data. Add rendering and `bevy_voxel_world` only in application crates when needed.
