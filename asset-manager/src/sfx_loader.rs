@@ -128,7 +128,7 @@ pub fn resample_interleaved(
     // rubato expects planar (per-channel) frames in Vec<Vec<f32>> with same length per channel.
     // Convert interleaved -> planar, resample, then reconvert.
     use rubato::{
-        InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction,
+        SincInterpolationParameters, SincInterpolationType, Resampler, SincFixedIn, WindowFunction,
     };
 
     let frames = samples.len() / channels;
@@ -152,10 +152,10 @@ pub fn resample_interleaved(
     }
 
     // InterpolationParameters fields: sinc_len, f_cutoff, interpolation, oversampling_factor, window
-    let params = InterpolationParameters {
+    let params = SincInterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
-        interpolation: InterpolationType::Cubic,
+        interpolation: SincInterpolationType::Cubic,
         oversampling_factor: 32,
         window: WindowFunction::BlackmanHarris2,
     };

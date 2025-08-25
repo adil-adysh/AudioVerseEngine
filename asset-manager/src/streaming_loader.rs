@@ -196,7 +196,7 @@ fn ensure_resampler(
     };
 
     if recreate {
-        use rubato::{InterpolationParameters, InterpolationType, SincFixedIn, WindowFunction};
+    use rubato::{SincInterpolationParameters, SincInterpolationType, SincFixedIn, WindowFunction};
         let params = InterpolationParameters {
             sinc_len: 128,
             f_cutoff: 0.95,

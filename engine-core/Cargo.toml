@@ -30,6 +30,12 @@ ron = "0.8"
 bevy_navmesh = "0.0.1"
 bevy_rapier3d = "0.31.0"
 
+# Character controller helpers (Tnua)
+# bevy-tnua v0.8 targets Bevy 0.16; the rapier integration crate aligns with Rapier
+# integration layer versions. If cargo resolution fails, adjust versions to match
+# the workspace Rapier version.
+bevy-tnua = "0.24"
+
 [features]
 # Optional feature to enable world loading examples/tests and their dependencies.
 # When enabled, the `world-loader` feature pulls in serde/serde_json/anyhow.

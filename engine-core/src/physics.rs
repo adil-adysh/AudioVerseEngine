@@ -1,63 +1,63 @@
-use bevy_ecs::prelude::{Query, Res, With};
+use bevy_ecs::prelude::{Query, Res, ResMut, With};
 use bevy_time::Time;
 use bevy_transform::components::Transform;
 use bevy_math::Vec3;
-use bevy_rapier3d::prelude::{KinematicCharacterController, KinematicCharacterControllerOutput};
+
+use bevy_tnua::controller::TnuaController;
+use bevy_tnua::builtins::TnuaBuiltinWalk;
+use bevy_ecs::prelude::Resource;
 
 use crate::components::*;
 
-/// This system handles all kinematic player movement logic.
-/// It combines input and external forces to set the desired translation.
-/// It relies on Rapier's internal logic to handle slopes and collisions.
+/// Small resource to remember the player's previous position so we can compute
+/// an empirical velocity from the actual Transform delta after physics.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct PrevPlayerPos(pub Option<Vec3>);
+
+/// Feed the Tnua controller from our simple MovementSpeed + MoveDirection
+/// components. This crate requires that the game always uses Tnua for
+/// character movement (no fallbacks), so we expect the entity to have a
+/// `TnuaController` component.
 pub fn kinematic_controller_update_system(
-    mut player_query: Query<(
-        &MovementSpeed,
-        &mut KinematicCharacterController,
-        &MoveDirection,
-        Option<&ExternalForce>,
-    ), With<Player>>,
-    time: Res<Time>,
+    mut tnua_query: Query<(&MovementSpeed, &MoveDirection, &mut TnuaController), With<Player>>,
+    _time: Res<Time>,
 ) {
-    if let Ok((speed, mut controller, direction, external_force)) = player_query.single_mut() {
-    let delta_time = time.delta_secs();
-        let mut desired_translation = Vec3::ZERO;
-
-        // 1. Add player's intended movement.
-        desired_translation += direction.0 * speed.0 * delta_time;
-
-        // 2. Add any external forces.
-        if let Some(force) = external_force {
-            desired_translation += force.0 * delta_time;
-        }
-        
-        // 3. Update the controller's translation with the final, combined movement.
-        // Rapier will handle the collision resolution, including slopes and steps.
-    controller.translation = Some(desired_translation);
+    if let Ok((speed, direction, mut controller)) = tnua_query.single_mut() {
+    let mut basis = TnuaBuiltinWalk::default();
+    basis.desired_velocity = direction.0 * speed.0;
+    basis.desired_forward = None;
+    basis.float_height = 2.0;
+    controller.basis(basis);
     }
 }
 
-/// This system runs AFTER the physics step. It reads the final physics
-/// output to update the player's true velocity and orientation.
+/// After physics, compute the player's velocity by comparing the current
+/// Transform with the previous frame's position. Update the `Velocity` component
+/// and orient the Transform to face the movement direction when appropriate.
 pub fn update_player_state_system(
-    mut player_query: Query<(
-        &KinematicCharacterControllerOutput,
-        &mut Velocity,
-        &mut Transform,
-    ), With<Player>>,
+    mut query: Query<(&mut Velocity, &mut Transform), With<Player>>,
+    mut prev_pos: ResMut<PrevPlayerPos>,
     time: Res<Time>,
 ) {
-    if let Ok((output, mut velocity, mut transform)) = player_query.single_mut() {
-        // 1. Update the velocity with the effective translation from Rapier.
-    let dt = time.delta_secs();
-        if dt > 0.0 {
-            velocity.0 = output.effective_translation / dt;
+    if let Ok((mut velocity, mut transform)) = query.single_mut() {
+        let dt = time.delta_secs();
+        let current = transform.translation;
+
+        if let Some(last) = prev_pos.0 {
+            if dt > 0.0 {
+                velocity.0 = (current - last) / dt;
+            }
+        } else {
+            // First frame: assume zero velocity.
+            velocity.0 = Vec3::ZERO;
         }
 
-        // 2. Update the player's facing direction based on their true velocity.
+        // Update facing direction based on current velocity.
         if velocity.0.length_squared() > 1e-6 {
-            // Use Transform::look_at with bevy_math Vec3 types.
-            let target = transform.translation + velocity.0.normalize();
+            let target = current + velocity.0.normalize();
             transform.look_at(target, Vec3::Y);
         }
+
+        prev_pos.0 = Some(current);
     }
 }

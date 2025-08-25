@@ -3,6 +3,8 @@ use bevy_rapier3d::plugin::RapierPhysicsPlugin;
 use bevy_rapier3d::prelude::NoUserData;
 use bevy_rapier3d::render::RapierDebugRenderPlugin;
 use std::collections::HashMap;
+use bevy_tnua::controller::TnuaControllerPlugin;
+mod spawn;
 
 // Declare all of our custom modules.
 mod components;
@@ -19,7 +21,7 @@ mod components;
 // with the full set of systems.
 mod physics;
 mod portal;
-mod audio;
+pub mod audio;
 mod world;
 mod systems;
 
@@ -29,6 +31,8 @@ pub use portal::*;
 pub use audio::*;
 pub use world::*;
 pub use systems::*;
+pub use spawn::spawn_player;
+pub use spawn::PlayerBundle;
 
 // This is the main plugin for our game logic.
 // All of our systems and resources are added here.
@@ -42,6 +46,10 @@ impl Plugin for GamePlugin {
             // Add this plugin to visualize the physics colliders for debugging.
             RapierDebugRenderPlugin::default(),
         ));
+    // Add Tnua controller plugin (character controller helpers).
+    app.add_plugins(TnuaControllerPlugin::default());
+    // Insert helper resource used by our player state update system.
+    app.insert_resource(crate::physics::PrevPlayerPos::default());
     // Install the audio plugin which registers audio resources and systems.
     app.add_plugins((AudioPlugin, WorldPlugin));
 

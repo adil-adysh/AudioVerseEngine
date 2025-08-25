@@ -18,9 +18,10 @@ fn test_player_input_sets_move_direction() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
 
-    // register system and spawn player
+    // register system and spawn player with a TnuaController so physics
+    // systems that assume tnua-only behavior have a controller to drive.
     app.add_systems(Update, player_input);
-    let player_entity = app.world_mut().spawn((Player, MoveDirection(bevy::math::Vec3::ZERO))).id();
+    let player_entity = engine_core::spawn_player(app.world_mut(), bevy::math::Vec3::ZERO);
 
     // press W
     let mut keyboard = bevy::input::ButtonInput::<bevy::input::keyboard::KeyCode>::default();
@@ -39,8 +40,8 @@ fn test_portal_trigger_and_teleport_flow() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
 
-    // Spawn player with Transform and HasCollider
-    app.world_mut().spawn((Player, HasCollider, Transform::from_translation(Vec3::new(0.0, 1.0, 0.0))));
+    // Spawn player with Transform and HasCollider (and TnuaController)
+    let _player = engine_core::spawn_player(app.world_mut(), Vec3::new(0.0, 1.0, 0.0));
 
     // Spawn portal covering player's position
     let aabb = Aabb { min: Vec3::new(-1.0, 0.0, -1.0), max: Vec3::new(1.0, 2.0, 1.0) };

@@ -178,8 +178,20 @@ pub fn load_world_from_json_system(mut commands: Commands, mut id_map: ResMut<En
     id_map.0.insert(entity_def.id.clone(), entity_commands.id());
 
     for component_def in entity_def.components {
-      match component_def {
-        ComponentDef::Player => { entity_commands.insert(Player); },
+        match component_def {
+        ComponentDef::Player => {
+          // Insert the Player marker and a minimal TnuaController so the
+          // game's always-on Tnua systems have a controller to drive.
+          entity_commands.insert(Player);
+          // We avoid pulling heavy types in this feature-gated loader; the
+          // `bevy-tnua` prelude is available in the main build, so use a
+          // manual insertion by type name here to keep loader code simple.
+          #[cfg(feature = "bevy-tnua-integration")]
+          {
+            use bevy_tnua::controller::TnuaController;
+            entity_commands.insert(TnuaController::default());
+          }
+        },
         ComponentDef::MovementSpeed(speed) => { entity_commands.insert(MovementSpeed(speed)); },
         ComponentDef::MoveDirection(dir) => { entity_commands.insert(MoveDirection(Vec3::new(dir[0], dir[1], dir[2]))); },
         ComponentDef::HasCollider => {

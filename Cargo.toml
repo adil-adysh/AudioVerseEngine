@@ -16,3 +16,8 @@ members = [
 	"resonance-audio-engine",
 	"app-bevy-windows"
 ]
+ 
+[patch.crates-io]
+# Use the upstream bevy-tnua source (branch main) to pick the current
+# Bevy-0.16-compatible integration layer from the upstream repository.
+bevy-tnua = { git = "https://github.com/idanarye/bevy-tnua", branch = "main" }

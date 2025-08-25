@@ -74,15 +74,15 @@ fn resample_interleaved(
         return samples.to_vec();
     }
     use rubato::{
-        InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction,
+        SincInterpolationParameters, SincInterpolationType, Resampler, SincFixedIn, WindowFunction,
     };
 
     let frames = samples.len() / channels;
     let ratio = to_rate as f64 / from_rate as f64;
-    let params = InterpolationParameters {
+    let params = SincInterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
-        interpolation: InterpolationType::Cubic,
+        interpolation: SincInterpolationType::Cubic,
         oversampling_factor: 32,
         window: WindowFunction::BlackmanHarris2,
     };

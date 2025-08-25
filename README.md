@@ -79,6 +79,8 @@ AudioVerseEngine has **three main layers**: Rust Core Engine, C++ Resonance Audi
 
 ## Current Status
 
+See `docs/audio-must-haves.md` for the prioritized "must-have" checklist for the audio engine.
+
 * **Implemented**:
 
   * Rust core engine design (crates & architecture planned).
