@@ -8,6 +8,7 @@ edition = "2021"
 bevy_ecs = "0.16"
 bevy_app = "0.16"
 bevy_time = "0.16"
+bevy = "0.16"
 
 # Math & errors - prefer bevy_math so types (Vec3) match other bevy crates
 bevy_math = "0.16"

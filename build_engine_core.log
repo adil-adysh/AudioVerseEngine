@@ -1,159 +1,157 @@
    Compiling engine-core v0.1.0 (C:\Users\adilh\repos\AudioVerseEngine\engine-core)
-warning: unused import: `components::*`
-  --> engine-core\src\lib.rs:24:5
+error[E0432]: unresolved import `bevy_input::prelude::Input`
+ --> engine-core\src\systems.rs:2:36
+  |
+2 | use bevy_input::prelude::{KeyCode, Input};
+  |                                    ^^^^^ no `Input` in `prelude`
+
+error[E0432]: unresolved import `physics`
+  --> engine-core\src\lib.rs:25:5
    |
-24 | use components::*;
+25 | use physics::*;
+   |     ^^^^^^^ use of unresolved module or unlinked crate `physics`
+   |
+   = help: if you wanted to use a crate named `physics`, use `cargo add physics` to add it to your `Cargo.toml`
+
+warning: unused import: `components::*`
+  --> engine-core\src\lib.rs:21:5
+   |
+21 | use components::*;
    |     ^^^^^^^^^^^^^
    |
    = note: `#[warn(unused_imports)]` on by default
 
-warning: field `sounds` is never read
-  --> engine-core\src\lib.rs:65:17
-   |
-64 |             struct AudioAssetsPlaceholder {
-   |                    ---------------------- field in this struct
-65 |                 sounds: HashMap<String, ()>,
-   |                 ^^^^^^
-   |
-   = note: `#[warn(dead_code)]` on by default
-
-warning: struct `Player` is never constructed
-  --> engine-core\src\components.rs:10:12
-   |
-10 | pub struct Player;
-   |            ^^^^^^
-
-warning: struct `MovementSpeed` is never constructed
-  --> engine-core\src\components.rs:13:12
-   |
-13 | pub struct MovementSpeed(pub f32);
-   |            ^^^^^^^^^^^^^
-
-warning: struct `MoveDirection` is never constructed
-  --> engine-core\src\components.rs:16:12
-   |
-16 | pub struct MoveDirection(pub Vec3);
-   |            ^^^^^^^^^^^^^
-
-warning: struct `HasCollider` is never constructed
-  --> engine-core\src\components.rs:19:12
-   |
-19 | pub struct HasCollider; // Marker to easily find entities with a collider
-   |            ^^^^^^^^^^^
-
-warning: struct `Velocity` is never constructed
-  --> engine-core\src\components.rs:23:12
-   |
-23 | pub struct Velocity(pub Vec3);
-   |            ^^^^^^^^
-
-warning: struct `ExternalForce` is never constructed
-  --> engine-core\src\components.rs:25:12
-   |
-25 | pub struct ExternalForce(pub Vec3);
-   |            ^^^^^^^^^^^^^
-
-warning: struct `SoundEmitter` is never constructed
-  --> engine-core\src\components.rs:30:12
-   |
-30 | pub struct SoundEmitter {
-   |            ^^^^^^^^^^^^
-
-warning: struct `SoundMaterial` is never constructed
-  --> engine-core\src\components.rs:37:12
-   |
-37 | pub struct SoundMaterial {
-   |            ^^^^^^^^^^^^^
-
-warning: struct `CurrentMedium` is never constructed
-  --> engine-core\src\components.rs:42:12
-   |
-42 | pub struct CurrentMedium {
-   |            ^^^^^^^^^^^^^
-
-warning: struct `CurrentAcousticSpace` is never constructed
-  --> engine-core\src\components.rs:47:12
-   |
-47 | pub struct CurrentAcousticSpace {
-   |            ^^^^^^^^^^^^^^^^^^^^
-
-warning: enum `MediumType` is never used
-  --> engine-core\src\components.rs:52:10
-   |
-52 | pub enum MediumType {
-   |          ^^^^^^^^^^
-
-warning: struct `AcousticVolume` is never constructed
-  --> engine-core\src\components.rs:68:12
-   |
-68 | pub struct AcousticVolume {
-   |            ^^^^^^^^^^^^^^
-
-warning: struct `MediumVolume` is never constructed
-  --> engine-core\src\components.rs:74:12
-   |
-74 | pub struct MediumVolume {
-   |            ^^^^^^^^^^^^
-
-warning: enum `VolumeShape` is never used
-  --> engine-core\src\components.rs:80:10
-   |
-80 | pub enum VolumeShape {
-   |          ^^^^^^^^^^^
-
-warning: struct `Aabb` is never constructed
-  --> engine-core\src\components.rs:88:12
-   |
-88 | pub struct Aabb {
-   |            ^^^^
-
-warning: struct `Sphere` is never constructed
-  --> engine-core\src\components.rs:94:12
-   |
-94 | pub struct Sphere {
-   |            ^^^^^^
-
-warning: method `contains` is never used
-   --> engine-core\src\components.rs:100:12
+error[E0277]: `RapierContext<'_>` is not a `Resource`
+   --> engine-core\src\audio.rs:47:21
     |
-99  | impl Aabb {
-    | --------- method in this implementation
-100 |     pub fn contains(&self, point: Vec3) -> bool {
-    |            ^^^^^^^^
-
-warning: method `contains` is never used
-   --> engine-core\src\components.rs:108:12
+47  |     rapier_context: Res<RapierContext>,
+    |                     ^^^^^^^^^^^^^^^^^^ invalid `Resource`
     |
-107 | impl Sphere {
-    | ----------- method in this implementation
-108 |     pub fn contains(&self, point: Vec3) -> bool {
-    |            ^^^^^^^^
-
-warning: method `contains` is never used
-   --> engine-core\src\components.rs:114:12
+    = help: the trait `Resource` is not implemented for `RapierContext<'_>`
+    = note: consider annotating `RapierContext<'_>` with `#[derive(Resource)]`
+    = help: the following other types implement trait `Resource`:
+              AccumulatedMouseMotion
+              AccumulatedMouseScroll
+              AppTypeRegistry
+              AssetProcessor
+              AssetServer
+              AssetSourceBuilders
+              Assets<A>
+              ButtonInput<T>
+            and 235 others
+note: required by a bound in `Res`
+   --> C:\Users\adilh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_ecs-0.16.1\src\change_detection.rs:637:32
     |
-113 | impl VolumeShape {
-    | ---------------- method in this implementation
-114 |     pub fn contains(&self, point: Vec3) -> bool {
-    |            ^^^^^^^^
+637 | pub struct Res<'w, T: ?Sized + Resource> {
+    |                                ^^^^^^^^ required by this bound in `Res`
 
-warning: struct `Portal` is never constructed
-   --> engine-core\src\components.rs:125:12
-    |
-125 | pub struct Portal {
-    |            ^^^^^^
+warning: use of deprecated method `bevy_ecs::system::Query::<'w, 's, D, F>::get_single`: Please use `single` instead
+  --> engine-core\src\portal.rs:23:65
+   |
+23 |     if let Ok((player_entity, player_transform)) = player_query.get_single() {
+   |                                                                 ^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
 
-warning: struct `Teleporting` is never constructed
-   --> engine-core\src\components.rs:130:12
-    |
-130 | pub struct Teleporting {
-    |            ^^^^^^^^^^^
+warning: use of deprecated method `bevy_ecs::system::Query::<'w, 's, D, F>::get_single`: Please use `single` instead
+  --> engine-core\src\portal.rs:24:30
+   |
+24 |         if teleporting_query.get_single().is_ok() {
+   |                              ^^^^^^^^^^
 
-warning: struct `WorldParent` is never constructed
-   --> engine-core\src\components.rs:138:12
-    |
-138 | pub struct WorldParent(pub String);
-    |            ^^^^^^^^^^^
+warning: use of deprecated method `bevy_ecs::system::Query::<'w, 's, D, F>::get_single_mut`: Please use `single_mut` instead
+  --> engine-core\src\portal.rs:54:86
+   |
+54 |     if let Ok((player_entity, mut player_transform, mut teleporting)) = player_query.get_single_mut() {
+   |                                                                                      ^^^^^^^^^^^^^^
 
-warning: `engine-core` (lib) generated 24 warnings (run `cargo fix --lib -p engine-core` to apply 1 suggestion)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.59s
+error[E0609]: no field `pitch` on type `Mut<'_, PlaybackSettings>`
+  --> engine-core\src\audio.rs:39:22
+   |
+39 |             settings.pitch = new_pitch;
+   |                      ^^^^^ unknown field
+   |
+   = note: available fields are: `mode`, `volume`, `speed`, `paused`, `muted` ... and 2 others
+
+error[E0599]: no method named `cast_ray` found for struct `Res` in the current scope
+  --> engine-core\src\audio.rs:64:67
+   |
+64 |             if let Some((entity, _intersection)) = rapier_context.cast_ray(
+   |                                                    ---------------^^^^^^^^ method not found in `Res<'_, RapierContext<'_>>`
+
+error[E0599]: no variant or associated item named `new` found for enum `Volume` in the current scope
+  --> engine-core\src\audio.rs:72:47
+   |
+72 |                     settings.volume = Volume::new(1.0 - material.occlusion_strength);
+   |                                               ^^^ variant or associated item not found in `Volume`
+   |
+help: there is a method `ne` with a similar name
+   |
+72 -                     settings.volume = Volume::new(1.0 - material.occlusion_strength);
+72 +                     settings.volume = Volume::ne(1.0 - material.occlusion_strength);
+   |
+
+error[E0599]: no variant or associated item named `new` found for enum `Volume` in the current scope
+  --> engine-core\src\audio.rs:74:47
+   |
+74 |                     settings.volume = Volume::new(0.5);
+   |                                               ^^^ variant or associated item not found in `Volume`
+   |
+help: there is a method `ne` with a similar name
+   |
+74 -                     settings.volume = Volume::new(0.5);
+74 +                     settings.volume = Volume::ne(0.5);
+   |
+
+error[E0599]: no variant or associated item named `new` found for enum `Volume` in the current scope
+  --> engine-core\src\audio.rs:77:43
+   |
+77 |                 settings.volume = Volume::new(1.0);
+   |                                           ^^^ variant or associated item not found in `Volume`
+   |
+help: there is a method `ne` with a similar name
+   |
+77 -                 settings.volume = Volume::new(1.0);
+77 +                 settings.volume = Volume::ne(1.0);
+   |
+
+error[E0599]: no variant or associated item named `W` found for enum `KeyCode` in the current scope
+  --> engine-core\src\systems.rs:12:40
+   |
+12 |     if keyboard_input.pressed(KeyCode::W) {
+   |                                        ^ variant or associated item not found in `KeyCode`
+
+error[E0599]: no variant or associated item named `S` found for enum `KeyCode` in the current scope
+  --> engine-core\src\systems.rs:15:40
+   |
+15 |     if keyboard_input.pressed(KeyCode::S) {
+   |                                        ^ variant or associated item not found in `KeyCode`
+
+error[E0599]: no variant or associated item named `A` found for enum `KeyCode` in the current scope
+  --> engine-core\src\systems.rs:18:40
+   |
+18 |     if keyboard_input.pressed(KeyCode::A) {
+   |                                        ^ variant or associated item not found in `KeyCode`
+
+error[E0599]: no variant or associated item named `D` found for enum `KeyCode` in the current scope
+  --> engine-core\src\systems.rs:21:40
+   |
+21 |     if keyboard_input.pressed(KeyCode::D) {
+   |                                        ^ variant or associated item not found in `KeyCode`
+
+error[E0599]: no variant or associated item named `LShift` found for enum `KeyCode` in the current scope
+  --> engine-core\src\systems.rs:27:40
+   |
+27 |     if keyboard_input.pressed(KeyCode::LShift) {
+   |                                        ^^^^^^ variant or associated item not found in `KeyCode`
+
+warning: use of deprecated method `bevy_ecs::system::Query::<'w, 's, D, F>::get_single_mut`: Please use `single_mut` instead
+  --> engine-core\src\systems.rs:35:44
+   |
+35 |     if let Ok(mut player_move_dir) = query.get_single_mut() {
+   |                                            ^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0277, E0432, E0599, E0609.
+For more information about an error, try `rustc --explain E0277`.
+warning: `engine-core` (lib) generated 5 warnings
+error: could not compile `engine-core` (lib) due to 13 previous errors; 5 warnings emitted

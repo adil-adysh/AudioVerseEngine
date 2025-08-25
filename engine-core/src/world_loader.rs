@@ -1,10 +1,9 @@
 // world_loading.rs
 // Note: This file would normally be separate. Included here for a complete example.
 use std::collections::HashMap;
-#[cfg(feature = "world-loader")]
+use bevy_math::Vec3;
+use bevy_ecs::prelude::{Commands, Entity, ResMut, Resource};
 use serde::Deserialize;
-use glam::Vec3;
-use bevy_ecs::prelude::{Commands, Component, Entity, ResMut, Resource};
 use bevy_transform::components::{Transform, GlobalTransform};
 use crate::components::*;
 
@@ -18,7 +17,7 @@ pub struct WorldMap {
 #[derive(Debug, Deserialize)]
 pub struct EntityDef {
     pub id: String,
-    #[serde(default)]
+  #[serde(default)]
     pub parent_id: Option<String>,
     pub components: Vec<ComponentDef>,
 }
@@ -97,43 +96,45 @@ pub fn load_world_from_json_system(mut commands: Commands, mut id_map: ResMut<En
         }
     };
 
-    // Pass 1: Spawn all entities and insert components.
-    // We store the original entity definitions to use in the second pass.
-    let mut entity_defs_to_parent = Vec::new();
-    for entity_def in world_map.entities {
+  // Pass 1: Spawn all entities and insert components.
+  // We store only id and parent_id to apply parenting in the second pass.
+  let mut entity_defs_to_parent: Vec<(String, Option<String>)> = Vec::new();
+  for entity_def in world_map.entities {
     let mut entity_commands = commands.spawn((Transform::default(), GlobalTransform::default()));
     id_map.0.insert(entity_def.id.clone(), entity_commands.id());
 
     for component_def in entity_def.components {
-            match component_def {
-                ComponentDef::Player => { entity_commands.insert(Player); },
-                ComponentDef::MovementSpeed(speed) => { entity_commands.insert(MovementSpeed(speed)); },
-                ComponentDef::MoveDirection(dir) => { entity_commands.insert(MoveDirection(dir)); },
-                ComponentDef::HasCollider => { entity_commands.insert(HasCollider); },
-                ComponentDef::SoundEmitter(s) => { entity_commands.insert(s); },
-                ComponentDef::SoundMaterial(s) => { entity_commands.insert(s); },
-                ComponentDef::AcousticVolume(s) => { entity_commands.insert(s); },
-                ComponentDef::MediumVolume(s) => { entity_commands.insert(s); },
-                ComponentDef::Portal(p) => { entity_commands.insert(p); },
-            }
-        }
-        entity_defs_to_parent.push(entity_def);
+      match component_def {
+        ComponentDef::Player => { entity_commands.insert(Player); },
+        ComponentDef::MovementSpeed(speed) => { entity_commands.insert(MovementSpeed(speed)); },
+        ComponentDef::MoveDirection(dir) => { entity_commands.insert(MoveDirection(dir)); },
+        ComponentDef::HasCollider => { entity_commands.insert(HasCollider); },
+        ComponentDef::SoundEmitter(s) => { entity_commands.insert(s); },
+        ComponentDef::SoundMaterial(s) => { entity_commands.insert(s); },
+        ComponentDef::AcousticVolume(s) => { entity_commands.insert(s); },
+        ComponentDef::MediumVolume(s) => { entity_commands.insert(s); },
+        ComponentDef::Portal(p) => { entity_commands.insert(p); },
+      }
     }
+    entity_defs_to_parent.push((entity_def.id.clone(), entity_def.parent_id.clone()));
+  }
 
     // Pass 2: Re-iterate and apply parenting using the ID map.
-    for entity_def in entity_defs_to_parent {
-        if let Some(parent_id) = entity_def.parent_id {
-            if let Some(&parent_bevy_id) = id_map.0.get(&parent_id) {
-                if let Ok(mut entity_commands) = commands.get_entity(id_map.0[&entity_def.id]) {
-                    entity_commands.set_parent(parent_bevy_id);
-                } else {
-                    eprintln!("Parenting failed: Could not find entity with ID '{}'", entity_def.id);
-                }
-            } else {
-                eprintln!("Parenting failed: Parent with ID '{}' not found for entity '{}'", parent_id, entity_def.id);
-            }
+  for (id, parent_id) in entity_defs_to_parent {
+    if let Some(parent_id) = parent_id {
+      if let Some(&parent_bevy_id) = id_map.0.get(&parent_id) {
+        if let Ok(mut entity_commands) = commands.get_entity(id_map.0[&id]) {
+          // Use the existing set_parent method; it's deprecated but
+          // still functional and avoids adding new type imports.
+          entity_commands.set_parent(parent_bevy_id);
+        } else {
+          eprintln!("Parenting failed: Could not find entity with ID '{}'", id);
         }
+      } else {
+        eprintln!("Parenting failed: Parent with ID '{}' not found for entity '{}'", parent_id, id);
+      }
     }
+  }
     println!("World loaded successfully!");
 }
 

@@ -1,4 +1,12 @@
-use bevy::prelude::{Commands, Query, Entity, Transform, Res, With, Timer, TimerMode, Time};
+use bevy_ecs::prelude::Commands;
+use bevy_ecs::prelude::Query;
+use bevy_ecs::prelude::Entity;
+use bevy_transform::components::Transform;
+use bevy_ecs::prelude::Res;
+use bevy_ecs::prelude::With;
+use bevy_time::Timer;
+use bevy_time::TimerMode;
+use bevy_time::Time;
 
 use crate::components::*;
 
@@ -12,8 +20,8 @@ pub fn portal_trigger_system(
     teleporting_query: Query<&Teleporting>,
 ) {
     // Check if a player entity exists and is not already in a teleporting state.
-    if let Ok((player_entity, player_transform)) = player_query.get_single() {
-        if teleporting_query.get_single().is_ok() {
+    if let Ok((player_entity, player_transform)) = player_query.single() {
+        if teleporting_query.single().is_ok() {
             return;
         }
         
@@ -29,7 +37,7 @@ pub fn portal_trigger_system(
                     destination: portal.destination,
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 });
-                info!("Player entered a portal, initiating teleportation...");
+                println!("Player entered a portal, initiating teleportation...");
                 return; // Only trigger one portal at a time.
             }
         }
@@ -43,7 +51,7 @@ pub fn handle_teleport_system(
     mut player_query: Query<(Entity, &mut Transform, &mut Teleporting)>,
     time: Res<Time>,
 ) {
-    if let Ok((player_entity, mut player_transform, mut teleporting)) = player_query.get_single_mut() {
+    if let Ok((player_entity, mut player_transform, mut teleporting)) = player_query.single_mut() {
         // Tick the timer.
         teleporting.timer.tick(time.delta());
 
@@ -51,7 +59,7 @@ pub fn handle_teleport_system(
         if teleporting.timer.finished() {
             // Perform the teleport.
             player_transform.translation = teleporting.destination;
-            info!("Player teleported to new destination!");
+            println!("Player teleported to new destination!");
 
             // Remove the Teleporting component to stop the transition.
             commands.entity(player_entity).remove::<Teleporting>();

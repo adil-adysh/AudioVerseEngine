@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::{Query, Res, With};
 use bevy_time::Time;
 use bevy_transform::components::Transform;
-use glam::Vec3;
+use bevy_math::Vec3;
 use bevy_rapier3d::prelude::{KinematicCharacterController, KinematicCharacterControllerOutput};
 
 use crate::components::*;
@@ -19,7 +19,7 @@ pub fn kinematic_controller_update_system(
     time: Res<Time>,
 ) {
     if let Ok((speed, mut controller, direction, external_force)) = player_query.single_mut() {
-        let delta_time = time.delta_seconds();
+    let delta_time = time.delta_secs();
         let mut desired_translation = Vec3::ZERO;
 
         // 1. Add player's intended movement.
@@ -44,22 +44,20 @@ pub fn update_player_state_system(
         &mut Velocity,
         &mut Transform,
     ), With<Player>>,
+    time: Res<Time>,
 ) {
     if let Ok((output, mut velocity, mut transform)) = player_query.single_mut() {
         // 1. Update the velocity with the effective translation from Rapier.
-        // Rapier's KinematicCharacterControllerOutput no longer exposes an
-        // explicit dt; use the last frame's delta time as an approximation.
-        let delta_time = 1.0 / 60.0; // conservative default
-        if let Some(dt_res) = time.get() {
-            // If the Time resource is available, use it.
-        }
-        if delta_time > 0.0 {
-            velocity.0 = output.effective_translation / delta_time;
+    let dt = time.delta_secs();
+        if dt > 0.0 {
+            velocity.0 = output.effective_translation / dt;
         }
 
         // 2. Update the player's facing direction based on their true velocity.
         if velocity.0.length_squared() > 1e-6 {
-            transform.look_at(transform.translation + velocity.0.normalize(), Vec3::Y);
+            // Use Transform::look_at with bevy_math Vec3 types.
+            let target = transform.translation + velocity.0.normalize();
+            transform.look_at(target, Vec3::Y);
         }
     }
 }

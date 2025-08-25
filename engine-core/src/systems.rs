@@ -1,36 +1,41 @@
-use bevy::prelude::{Res, Query, With, KeyCode, Input, Vec3};
+use bevy_ecs::prelude::{Res, Query, With};
+use bevy_input::ButtonInput;
+use bevy_input::keyboard::KeyCode;
+use bevy_math::Vec3;
 use crate::components::*;
 
-// System to handle keyboard input for player movement on all three axes.
-pub fn player_input(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<&mut MoveDirection, With<Player>>,
-) {
-    let mut move_direction = Vec3::ZERO;
-    if keyboard_input.pressed(KeyCode::W) {
-        move_direction.z -= 1.0;
+// Restores player input using Bevy 0.16 `ButtonInput<KeyCode>` and `KeyCode` variants.
+// Maps W/A/S/D to forward/left/back/right, Space to jump (up), and LShift to sprint (speed modifier).
+pub fn player_input(keyboard: Res<ButtonInput<KeyCode>>, mut query: Query<&mut MoveDirection, With<Player>>) {
+    let mut direction = Vec3::ZERO;
+
+    if keyboard.pressed(KeyCode::KeyW) {
+        direction.z -= 1.0;
     }
-    if keyboard_input.pressed(KeyCode::S) {
-        move_direction.z += 1.0;
+    if keyboard.pressed(KeyCode::KeyS) {
+        direction.z += 1.0;
     }
-    if keyboard_input.pressed(KeyCode::A) {
-        move_direction.x -= 1.0;
+    if keyboard.pressed(KeyCode::KeyA) {
+        direction.x -= 1.0;
     }
-    if keyboard_input.pressed(KeyCode::D) {
-        move_direction.x += 1.0;
+    if keyboard.pressed(KeyCode::KeyD) {
+        direction.x += 1.0;
     }
-    if keyboard_input.pressed(KeyCode::Space) {
-        move_direction.y += 1.0;
+    // Vertical input: Space for up (jump). Preserving as a simple flag vector component.
+    if keyboard.pressed(KeyCode::Space) {
+        direction.y += 1.0;
     }
-    if keyboard_input.pressed(KeyCode::LShift) {
-        move_direction.y -= 1.0;
-    }
-    
-    if move_direction != Vec3::ZERO {
-        move_direction = move_direction.normalize();
-    }
-    
-    if let Ok(mut player_move_dir) = query.get_single_mut() {
-        player_move_dir.0 = move_direction;
+
+    // Normalize horizontal movement but keep vertical as-is
+    let horizontal = Vec3::new(direction.x, 0.0, direction.z);
+    let horizontal = if horizontal.length_squared() > 0.0 {
+        horizontal.normalize()
+    } else {
+        Vec3::ZERO
+    };
+    let move_dir = Vec3::new(horizontal.x, direction.y, horizontal.z);
+
+    if let Ok(mut player_move_dir) = query.single_mut() {
+        player_move_dir.0 = move_dir;
     }
 }

@@ -1,4 +1,4 @@
-use bevy_app::{App, FixedUpdate, PostUpdate, Plugin, Update};
+use bevy_app::{App, Plugin, Update, FixedUpdate, PostUpdate};
 use bevy_rapier3d::plugin::RapierPhysicsPlugin;
 use bevy_rapier3d::prelude::NoUserData;
 use bevy_rapier3d::render::RapierDebugRenderPlugin;
@@ -12,35 +12,18 @@ mod world_loader;
 // Heavy modules are feature-gated to allow a minimal compile while we
 // iteratively fix their implementations. Enable `full_engine` to build
 // with the full set of systems.
-#[cfg(feature = "full_engine")]
 mod physics;
-#[cfg(feature = "full_engine")]
 mod portal;
-#[cfg(feature = "full_engine")]
 mod audio;
-#[cfg(feature = "full_engine")]
 mod systems;
 
 use components::*;
 #[cfg(feature = "world-loader")]
 use world_loader::*;
-
-// If the full modules are not compiled, provide lightweight stubs so the
-// plugin can still be built. These are replaced when `full_engine` is set.
-#[cfg(not(feature = "full_engine"))]
-mod stubs {
-    pub fn player_input() {}
-    pub fn update_listener_position_system() {}
-    pub fn environmental_effects_system() {}
-    pub fn audio_occlusion_system() {}
-    pub fn doppler_effect_system() {}
-    pub fn portal_trigger_system() {}
-    pub fn handle_teleport_system() {}
-    pub fn kinematic_controller_update_system() {}
-    pub fn update_player_state_system() {}
-}
-#[cfg(not(feature = "full_engine"))]
-use stubs::*;
+use physics::*;
+use portal::*;
+use audio::*;
+use systems::*;
 
 // This is the main plugin for our game logic.
 // All of our systems and resources are added here.
@@ -54,53 +37,20 @@ impl Plugin for GamePlugin {
             // Add this plugin to visualize the physics colliders for debugging.
             RapierDebugRenderPlugin::default(),
         ));
-        // Add our custom resource for managing audio assets. Use a
-        // lightweight placeholder when full_engine is not enabled.
-        #[cfg(not(feature = "full_engine"))]
-        {
-            use bevy_ecs::prelude::Resource;
+    // Install the audio plugin which registers audio resources and systems.
+    app.add_plugins((AudioPlugin,));
 
-            #[derive(Default, Resource)]
-            struct AudioAssetsPlaceholder {
-                sounds: HashMap<String, ()>,
-            }
-            app.insert_resource(AudioAssetsPlaceholder { sounds: HashMap::new() });
-        }
-        #[cfg(feature = "full_engine")]
-        {
-            app.insert_resource(AudioAssets {
-                sounds: HashMap::new(),
-            });
-        }
-        // Add all of our custom systems to the game's update loop.
-        app.add_systems(Update, (
-            // Input System
-            player_input,
+    // Add our custom systems to the game's update loop individually to
+    // keep the API surface simple during migration.
+    app.add_systems(Update, player_input);
+    app.add_systems(Update, doppler_effect_system);
+    app.add_systems(Update, portal_trigger_system);
+    app.add_systems(Update, handle_teleport_system);
 
-            // Audio Systems
-            update_listener_position_system,
-            environmental_effects_system,
-            audio_occlusion_system,
-            doppler_effect_system,
-
-            // Portal Systems
-            portal_trigger_system,
-            handle_teleport_system,
-
-            // World and Entity Systems (optional)
-    ));
-
-        // Register world loader systems only when the feature is enabled.
-        #[cfg(feature = "world-loader")] {
-            app.add_systems(Update, (
-                load_world_system,
-                spawn_entities_system,
-            ));
-        }
-
-        // Add our physics systems to the correct stages to ensure they run
-        // in sync with the physics engine.
-        app.add_systems(FixedUpdate, kinematic_controller_update_system);
-        app.add_systems(PostUpdate, update_player_state_system);
+    // Add our physics systems to the correct stages to ensure they run
+    // in sync with the physics engine. These systems are enabled by
+    // default per project policy (no feature gates).
+    app.add_systems(FixedUpdate, kinematic_controller_update_system);
+    app.add_systems(PostUpdate, update_player_state_system);
     }
 }
