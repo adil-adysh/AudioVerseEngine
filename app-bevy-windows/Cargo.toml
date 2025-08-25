@@ -1,0 +1,18 @@
+[package]
+name = "app-bevy-windows"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Use the workspace-compatible bevy crate and enable its default features so
+# platform and renderer support are available. The workspace's Cargo.lock is
+# pinned to bevy 0.16.1; avoid custom feature names that don't exist upstream.
+bevy = "0.16"
+engine-core = { path = "../engine-core" }
+bevy_audio = "0.16"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3

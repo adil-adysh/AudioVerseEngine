@@ -1,5 +1,9 @@
 // world_loading.rs
-// Note: This file would normally be separate. Included here for a complete example.
+// Note: This file is feature-gated: it only compiles when the `world-loader`
+// feature is enabled on the `engine-core` crate. This keeps the default build
+// lightweight.
+#![cfg(feature = "world-loader")]
+
 use std::collections::HashMap;
 use bevy_math::Vec3;
 use bevy_ecs::prelude::{Commands, Entity, ResMut, Resource};

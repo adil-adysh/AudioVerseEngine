@@ -1,4 +1,4 @@
-use bevy_ecs::prelude::{Query, With, Resource, Entity};
+use bevy::prelude::{Query, With, Resource, Entity};
 use bevy_transform::components::Transform;
 use bevy_transform::components::GlobalTransform;
 use bevy_asset::Handle;
@@ -112,6 +112,7 @@ pub fn audio_occlusion_system(
         }
     }
 }
+
 
 // Minimal audio plugin to encapsulate audio resources and systems.
 pub struct AudioPlugin;

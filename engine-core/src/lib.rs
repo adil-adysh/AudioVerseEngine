@@ -6,8 +6,13 @@ use std::collections::HashMap;
 
 // Declare all of our custom modules.
 mod components;
-#[cfg(feature = "world-loader")]
-mod world_loader;
+// World loader is feature-gated and under active development.
+// Temporarily omit the module from the default build to avoid
+// pulling serde/glam/type-layout dependencies during workspace
+// compilation. Re-enable by restoring the `mod world_loader;` line
+// and enabling the `world-loader` feature.
+// #[cfg(feature = "world-loader")]
+// mod world_loader;
 
 // Heavy modules are feature-gated to allow a minimal compile while we
 // iteratively fix their implementations. Enable `full_engine` to build
@@ -15,15 +20,15 @@ mod world_loader;
 mod physics;
 mod portal;
 mod audio;
+mod world;
 mod systems;
 
-use components::*;
-#[cfg(feature = "world-loader")]
-use world_loader::*;
-use physics::*;
-use portal::*;
-use audio::*;
-use systems::*;
+pub use components::*;
+pub use physics::*;
+pub use portal::*;
+pub use audio::*;
+pub use world::*;
+pub use systems::*;
 
 // This is the main plugin for our game logic.
 // All of our systems and resources are added here.
@@ -38,7 +43,7 @@ impl Plugin for GamePlugin {
             RapierDebugRenderPlugin::default(),
         ));
     // Install the audio plugin which registers audio resources and systems.
-    app.add_plugins((AudioPlugin,));
+    app.add_plugins((AudioPlugin, WorldPlugin));
 
     // Add our custom systems to the game's update loop individually to
     // keep the API surface simple during migration.
